@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.env.local
+.env*.local
+*.log
+*.pem
+.DS_Store
+dist/
+build/
+.vercel/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+agentic-framework-generic/
+certificates/
