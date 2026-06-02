@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
-import { Zap, Pencil, Plus, ChevronDown } from 'lucide-react'
+import { Zap, Pencil, Plus, ChevronDown, ChevronLeft, PackagePlus, X } from 'lucide-react'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { ScanResultScreen } from '@/components/scanner/ScanResultScreen'
 import { HelpModal } from '@/components/tutorial/HelpModal'
@@ -31,8 +31,10 @@ export default function ScanPage() {
   const [resultSource, setResultSource] = useState('')
   const [manualCode, setManualCode] = useState('')
   const [manualCodes, setManualCodes] = useState<ManualStickerWithStatus[]>([])
+  const [manualPreviewMode, setManualPreviewMode] = useState(false)
+  const [savingManual, setSavingManual] = useState(false)
   const [helpVisible, setHelpVisible] = useState(false)
-  const { saveScannedStickers, entries } = useInventarioStore()
+  const { saveScannedStickers, entries, missing } = useInventarioStore()
 
   const handleCodes = useCallback((codes: string[], source: string) => {
     setResultSource(source)
@@ -45,6 +47,24 @@ export default function ScanPage() {
     setResult(null)
     setActive(null)
   }, [saveScannedStickers])
+
+  const handleManualConfirm = useCallback(async () => {
+    if (savingManual || manualCodes.length === 0) return
+    setSavingManual(true)
+    try {
+      const codes = manualCodes.map(c => c.code)
+      const count = await saveScannedStickers(codes)
+      toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
+      setManualCodes([])
+      setManualPreviewMode(false)
+      setActive(null)
+    } catch (error) {
+      console.error('Save error:', error)
+      toast.error('Erro ao salvar.')
+    } finally {
+      setSavingManual(false)
+    }
+  }, [manualCodes, savingManual, saveScannedStickers])
 
   const normalizeCode = (raw: string): string =>
     raw.trim().toUpperCase().replace(/^([A-Z]{2,3})[\s\-]*([0-9]{1,2})$/, '$1 $2')
@@ -74,6 +94,122 @@ export default function ScanPage() {
     setManualCodes((p) => [...p, enriched])
     setManualCode('')
   }, [manualCode, manualCodes, normalizeCode, enrichCode])
+
+  // ✅ NOVO: Preview do fluxo manual
+  if (manualPreviewMode && active === 'manual') {
+    const newCount = manualCodes.filter(d => d.status === 'new').length
+    const repetidasCount = manualCodes.filter(d => d.status !== 'new').length
+
+    return (
+      <div className="min-h-screen bg-ink-900 px-4 pt-safe pb-24">
+        {/* Header */}
+        <div className="flex items-center justify-between py-5">
+          <button
+            onClick={() => setManualPreviewMode(false)}
+            className="flex items-center gap-2 text-sm font-semibold text-ink-400 hover:text-ink-300 transition"
+          >
+            <ChevronLeft size={18} />
+            Voltar
+          </button>
+          <div className="text-xs font-body text-ink-500 tracking-wide">👁 PREVIEW</div>
+          <div className="text-xs text-ink-500">{manualCodes.length}</div>
+        </div>
+
+        {/* Status Tags */}
+        <div className="flex gap-2 flex-wrap mb-4">
+          {newCount > 0 && (
+            <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3B82F6' }}>
+              ✓ {newCount} nova{newCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {repetidasCount > 0 && (
+            <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+              🔁 {repetidasCount} repetida{repetidasCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Lista de Figurinhas */}
+        <div className="space-y-2 mb-6">
+          {manualCodes.map(item => {
+            const entry = entries.find(e => e.sticker_code === item.code)
+            const catalogEntry = missing.find(m => m.sticker_code === item.code)
+            const countryName = entry?.country_name ?? catalogEntry?.country_name ?? item.code
+            const currentQty = entry?.quantity_owned ?? 0
+
+            let statusColor = '#3B82F6'
+            let statusBg = 'rgba(59,130,246,0.08)'
+            let statusLabel = 'Nova'
+            let statusSymbol = '✅'
+
+            if (item.status === 'duplicate' || item.status === 'pasted') {
+              statusColor = '#F59E0B'
+              statusBg = 'rgba(245,158,11,0.08)'
+              statusLabel = 'Repetida'
+              statusSymbol = '🔁'
+            }
+
+            return (
+              <div key={item.code} className="flex items-center gap-3 p-3 bg-ink-800/30 rounded-lg border border-ink-700/30">
+                <div className="w-12 h-9 rounded-lg bg-ink-700 flex items-center justify-center flex-shrink-0">
+                  <span className="font-mono text-xs text-ink-100 font-bold">{item.code}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-ink-100 truncate">{countryName}</p>
+                  <p className="text-ink-500 text-xs">
+                    {item.status === 'new' ? 'Pode ser colada' : item.status === 'pasted' ? 'Já colada' : `Já tem ${currentQty} · será repetida`}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs font-body px-2 py-1 rounded-full" style={{ backgroundColor: statusBg, color: statusColor }}>
+                    {statusSymbol} {statusLabel}
+                  </span>
+                  <button
+                    onClick={() => setManualCodes((prev) => prev.filter((x) => x.code !== item.code))}
+                    className="w-6 h-6 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Botões Ação */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setManualCodes([])}
+            className="flex-1 py-2.5 bg-ink-700 hover:bg-ink-600 rounded-lg font-semibold text-sm text-ink-300 transition"
+          >
+            Limpar
+          </button>
+          <button
+            onClick={() => void handleManualConfirm()}
+            disabled={savingManual}
+            className={[
+              'flex-1 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2',
+              savingManual
+                ? 'bg-ink-700 text-ink-500 cursor-not-allowed'
+                : 'bg-gold-500 text-ink-900 hover:bg-gold-600',
+            ].join(' ')}
+          >
+            {savingManual ? (
+              <>
+                <span className="w-4 h-4 rounded-full border-2 border-ink-900/30 border-t-ink-900 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <PackagePlus size={16} />
+                Adicionar no estoque ({manualCodes.length})
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (result !== null) {
     return (
@@ -175,7 +311,7 @@ export default function ScanPage() {
                             })}
                           </div>
                           <button
-                            onClick={() => handleCodes(manualCodes.map(c => c.code), 'Manual')}
+                            onClick={() => setManualPreviewMode(true)}
                             className="w-full py-2.5 bg-gold-500 hover:bg-gold-600 rounded-lg font-heading font-bold text-ink-900 text-sm transition-colors"
                           >
                             Ver resultado ({manualCodes.length})
