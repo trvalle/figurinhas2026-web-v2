@@ -23,10 +23,10 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
   const [saving,       setSaving]       = useState(false)
   const [error,        setError]        = useState<string | null>(null)
 
-  const entries             = useInventarioStore((s) => s.entries)
-  const missing             = useInventarioStore((s) => s.missing)
-  const saveScannedStickers = useInventarioStore((s) => s.saveScannedStickers)
-  const entriesRef         = useRef(entries)
+  const entries       = useInventarioStore((s) => s.entries)
+  const missing       = useInventarioStore((s) => s.missing)
+  const saveWithStatus = useInventarioStore((s) => s.saveWithStatus)
+  const entriesRef    = useRef(entries)
   useEffect(() => { entriesRef.current = entries }, [entries])
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
     if (saving || detected.length === 0) return
     setSaving(true)
     try {
-      const count = await saveScannedStickers(detected.map((d) => d.code))
+      const count = await saveWithStatus(detected.map((d) => ({ code: d.code, status: d.status })))
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''} ao estoque!`)
       setDetected([])
       setShowPreview(false)
@@ -100,7 +100,7 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
     } finally {
       setSaving(false)
     }
-  }, [saving, detected, saveScannedStickers])
+  }, [saving, detected, saveWithStatus])
 
   const newCount      = detected.filter((d) => d.status === 'faltante').length
   const repetidasCount = detected.filter((d) => d.status !== 'faltante').length

@@ -15,3 +15,5 @@ build/
 *~
 agentic-framework-generic/
 certificates/
+
+.vercel

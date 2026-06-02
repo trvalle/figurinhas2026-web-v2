@@ -35,7 +35,7 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
   const [saving, setSaving] = useState(false)
   const [isActive, setIsActive] = useState(false)
 
-  const { saveScannedStickers } = useInventarioStore()
+  const { saveWithStatus } = useInventarioStore()
 
   // Inicializar câmera
   useEffect(() => {
@@ -114,7 +114,7 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     if (saving || detected.length === 0) return
     setSaving(true)
     try {
-      const count = await saveScannedStickers(detected.map(d => d.code))
+      const count = await saveWithStatus(detected.map(d => ({ code: d.code, status: d.status })))
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
       onConfirm(detected.map(d => d.code))
       setDetected([])
@@ -124,7 +124,7 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     } finally {
       setSaving(false)
     }
-  }, [detected, saving, saveScannedStickers, onConfirm])
+  }, [detected, saving, saveWithStatus, onConfirm])
 
   const isLoading = readyState === 'loading_opencv' || readyState === 'loading_ocr'
   const isError = readyState === 'error'

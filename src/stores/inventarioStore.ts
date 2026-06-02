@@ -8,6 +8,7 @@
 import { create } from 'zustand'
 import { getSupabaseClient } from '../services/supabase'
 import type { UserSticker, CatalogEntry, InventarioEntry } from '../types/app.types'
+import type { StickerDetectionStatus } from '../services/realtimeScanner'
 
 interface InventarioStats {
   coladas: number
@@ -47,6 +48,15 @@ interface InventarioState {
    * Retorna o número de figurinhas salvas com sucesso.
    */
   saveScannedStickers: (codes: string[]) => Promise<number>
+
+  /**
+   * Salva figurinhas com status inteligente.
+   * Lógica:
+   * - faltante/estoque: INSERT com quantity_owned=1 (nova figurinha)
+   * - colada/repetida: UPDATE quantity_owned + 1 (incrementa existente)
+   * Retorna o número de figurinhas salvas com sucesso.
+   */
+  saveWithStatus: (items: { code: string; status: StickerDetectionStatus }[]) => Promise<number>
 
   /**
    * Carrega inventário completo: user_stickers + catalog em paralelo, join client-side.
@@ -168,6 +178,66 @@ export const useInventarioStore = create<InventarioState>((set, get) => ({
           })
         } else {
           toInsert.push({ user_id: user.id, sticker_code: code, quantity_owned: 1 })
+        }
+      }
+
+      let saved = 0
+      for (const row of toUpdate) {
+        const { error } = await supabase
+          .from('user_stickers')
+          .update({ quantity_owned: row.quantity_owned, updated_at: row.updated_at })
+          .eq('id', row.id)
+        if (!error) saved++
+      }
+      if (toInsert.length > 0) {
+        const { data, error } = await supabase
+          .from('user_stickers')
+          .insert(toInsert)
+          .select('id')
+        if (!error) saved += (data ?? []).length
+      }
+
+      set({ loading: false })
+      await get().fetchInventario()
+      return saved
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Erro desconhecido.', loading: false })
+      return 0
+    }
+  },
+
+  // ── saveWithStatus ────────────────────────────────────────────────────────
+
+  saveWithStatus: async (items) => {
+    if (items.length === 0) return 0
+    set({ loading: true, error: null })
+    const supabase = getSupabaseClient()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { set({ error: 'Usuário não autenticado.', loading: false }); return 0 }
+
+      const codes = items.map(i => i.code)
+      const { data: existing } = await supabase
+        .from('user_stickers')
+        .select('id, sticker_code, quantity_owned')
+        .eq('user_id', user.id)
+        .in('sticker_code', codes)
+
+      const existingMap = new Map((existing ?? []).map((s) => [s.sticker_code, s]))
+
+      const toUpdate: { id: string; quantity_owned: number; updated_at: string }[] = []
+      const toInsert: { user_id: string; sticker_code: string; quantity_owned: number }[] = []
+
+      for (const item of items) {
+        const found = existingMap.get(item.code)
+        if (found) {
+          toUpdate.push({
+            id: found.id,
+            quantity_owned: found.quantity_owned + 1,
+            updated_at: new Date().toISOString(),
+          })
+        } else {
+          toInsert.push({ user_id: user.id, sticker_code: item.code, quantity_owned: 1 })
         }
       }
 
