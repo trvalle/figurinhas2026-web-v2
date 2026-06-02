@@ -7,15 +7,15 @@ import { useInventarioStore } from '@/stores/inventarioStore'
 import { ScanResultScreen } from '@/components/scanner/ScanResultScreen'
 import { HelpModal } from '@/components/tutorial/HelpModal'
 
-const RealtimeScanner = dynamic(
-  () => import('@/components/scanner/RealtimeScanner').then((m) => m.RealtimeScanner),
+const GoogleVisionScanner = dynamic(
+  () => import('@/components/scanner/GoogleVisionScanner'),
   { ssr: false },
 )
 
 type ActivePanel = 'realtime' | 'manual' | null
 
 const PANELS: { key: NonNullable<ActivePanel>; icon: React.ElementType; label: string; sub: string }[] = [
-  { key: 'realtime', icon: Zap,    label: 'Tempo Real', sub: 'Identifica automaticamente' },
+  { key: 'realtime', icon: Zap,    label: 'Tempo Real', sub: 'Google Vision API' },
   { key: 'manual',   icon: Pencil, label: 'Manual',     sub: 'Digite o código' },
 ]
 
@@ -26,7 +26,7 @@ export default function ScanPage() {
   const [manualCode, setManualCode] = useState('')
   const [manualCodes, setManualCodes] = useState<string[]>([])
   const [helpVisible, setHelpVisible] = useState(false)
-  const { saveScannedStickers } = useInventarioStore()
+  const { saveScannedStickers, entries } = useInventarioStore()
 
   const handleCodes = useCallback((codes: string[], source: string) => {
     setResultSource(source)
@@ -64,12 +64,11 @@ export default function ScanPage() {
 
   if (active === 'realtime') {
     return (
-      <div className="fixed inset-0 z-[100] bg-ink-900">
-        <RealtimeScanner
-          onConfirm={(c) => handleCodes(c, 'Tempo Real')}
-          onClose={() => setActive(null)}
-        />
-      </div>
+      <GoogleVisionScanner
+        stickers={entries}
+        onConfirm={(c) => handleCodes(c, 'Tempo Real')}
+        onClose={() => setActive(null)}
+      />
     )
   }
 
