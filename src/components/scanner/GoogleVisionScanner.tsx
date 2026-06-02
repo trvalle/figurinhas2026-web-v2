@@ -27,6 +27,7 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const [saving, setSaving] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [mode, setMode] = useState<'camera' | 'gallery'>('camera')
+  const [showPreview, setShowPreview] = useState(false)
 
   const { saveScannedStickers, entries, missing } = useInventarioStore()
 
@@ -176,7 +177,11 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
     }
   }, [enrichDetected])
 
-  const handleSave = useCallback(async () => {
+  const handleShowPreview = useCallback(() => {
+    setShowPreview(true)
+  }, [])
+
+  const handleAddToStock = useCallback(async () => {
     if (saving || detected.length === 0) return
     setSaving(true)
     try {
@@ -185,6 +190,7 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
       onConfirm(codes)
       setDetected([])
+      setShowPreview(false)
     } catch (error) {
       console.error('[GoogleVisionScanner] Save error:', error)
       toast.error('Erro ao salvar.')
@@ -200,6 +206,126 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const newCount = detected.filter(d => d.status === 'new').length
   const repetidasCount = detected.filter(d => d.status === 'duplicate').length
   const coladasCount = detected.filter(d => d.status === 'pasted').length
+
+  // ✅ NOVO: Tela de Preview
+  if (showPreview) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-ink-900 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-ink-700 bg-ink-900/50">
+          <button
+            onClick={() => setShowPreview(false)}
+            className="flex items-center gap-2 text-sm font-semibold text-ink-400 hover:text-ink-300 transition"
+          >
+            <ChevronLeft size={18} />
+            Voltar
+          </button>
+          <div className="text-xs font-body text-ink-500 tracking-wide">👁 PREVIEW</div>
+          <div className="text-xs text-ink-500">{detected.length}</div>
+        </div>
+
+        {/* Status Tags */}
+        <div className="px-4 py-2 flex gap-2 flex-wrap flex-shrink-0 border-b border-ink-700/30 bg-ink-800/50">
+          {newCount > 0 && (
+            <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3B82F6' }}>
+              ✓ {newCount} nova{newCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {repetidasCount > 0 && (
+            <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+              🔁 {repetidasCount} repetida{repetidasCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {coladasCount > 0 && (
+            <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80' }}>
+              ✔ {coladasCount} colada{coladasCount !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Lista de Figurinhas */}
+        <div className="overflow-y-auto flex-1">
+          <div className="divide-y divide-ink-700/20">
+            {detected.map(d => {
+              let statusColor = '#3B82F6'
+              let statusBg = 'rgba(59,130,246,0.08)'
+              let statusLabel = 'Nova'
+              let statusSymbol = '✓'
+
+              if (d.status === 'duplicate') {
+                statusColor = '#F59E0B'
+                statusBg = 'rgba(245,158,11,0.08)'
+                statusLabel = 'Repetida'
+                statusSymbol = '🔁'
+              } else if (d.status === 'pasted') {
+                statusColor = '#4ADE80'
+                statusBg = 'rgba(74,222,128,0.08)'
+                statusLabel = 'Colada'
+                statusSymbol = '✔'
+              }
+
+              return (
+                <div key={d.code} className="flex items-center gap-3 px-4 py-3">
+                  <div className="w-12 h-9 rounded-lg bg-ink-700 flex items-center justify-center flex-shrink-0">
+                    <span className="font-mono text-xs text-ink-100 font-bold">{d.code}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-ink-100 truncate">{d.countryName}</p>
+                    <p className="text-ink-500 text-xs">
+                      {d.status === 'new' ? 'Pode ser colada' : d.status === 'pasted' ? 'Já colada' : `Já tem ${d.currentQty} · será repetida`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs font-body px-2 py-1 rounded-full" style={{ backgroundColor: statusBg, color: statusColor }}>
+                      {statusSymbol} {statusLabel}
+                    </span>
+                    <button
+                      onClick={() => handleRemove(d.code)}
+                      className="w-6 h-6 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Botões Ação */}
+        <div className="flex gap-2 p-4 border-t border-ink-700 flex-shrink-0">
+          <button
+            onClick={() => setDetected([])}
+            className="flex-1 py-2.5 bg-ink-700 hover:bg-ink-600 rounded-lg font-semibold text-sm text-ink-300 transition"
+          >
+            Limpar
+          </button>
+          <button
+            onClick={() => void handleAddToStock()}
+            disabled={saving}
+            className={[
+              'flex-1 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2',
+              saving
+                ? 'bg-ink-700 text-ink-500 cursor-not-allowed'
+                : 'bg-gold-500 text-ink-900 hover:bg-gold-600',
+            ].join(' ')}
+          >
+            {saving ? (
+              <>
+                <span className="w-4 h-4 rounded-full border-2 border-ink-900/30 border-t-ink-900 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <PackagePlus size={16} />
+                Adicionar no estoque ({detected.length})
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 z-[100] bg-ink-900 flex flex-col">
@@ -379,16 +505,16 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
               Limpar
             </button>
             <button
-              onClick={() => void handleSave()}
-              disabled={saving}
+              onClick={() => void handleShowPreview()}
+              disabled={detected.length === 0}
               className={[
-                'flex-1 py-2.5 rounded-lg font-semibold text-sm transition',
-                saving
+                'flex-1 py-2.5 rounded-lg font-semibold text-sm transition flex items-center justify-center gap-2',
+                detected.length === 0
                   ? 'bg-ink-700 text-ink-500 cursor-not-allowed'
-                  : 'bg-green-600 text-white hover:bg-green-700',
+                  : 'bg-blue-600 text-white hover:bg-blue-700',
               ].join(' ')}
             >
-              {saving ? '⟳ SALVANDO...' : `✓ SALVAR (${detected.length})`}
+              👁 Visualizar ({detected.length})
             </button>
           </div>
         </div>
