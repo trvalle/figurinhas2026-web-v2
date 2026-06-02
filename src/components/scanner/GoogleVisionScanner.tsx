@@ -5,6 +5,13 @@ import { useInventarioStore } from '@/stores/inventarioStore'
 import { recognizeText, extractAndValidateCodes, loadCatalogCache } from '@/services/ocr'
 import toast from 'react-hot-toast'
 
+interface DetectedSticker {
+  code: string
+  status: 'new' | 'duplicate' | 'pasted'
+  countryName: string
+  currentQty: number
+}
+
 interface GoogleVisionScannerProps {
   stickers: any[]
   onConfirm: (codes: string[]) => void
@@ -16,12 +23,35 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
-  const [detected, setDetected] = useState<string[]>([])
+  const [detected, setDetected] = useState<DetectedSticker[]>([])
   const [saving, setSaving] = useState(false)
   const [processing, setProcessing] = useState(false)
   const [mode, setMode] = useState<'camera' | 'gallery'>('camera')
 
-  const { saveScannedStickers } = useInventarioStore()
+  const { saveScannedStickers, entries, missing } = useInventarioStore()
+
+  // Enriquecer código com status e país
+  const enrichDetected = useCallback(async (codes: string[]) => {
+    const catalog = await loadCatalogCache()
+    const catalogMap = new Map(catalog.map(c => [c.sticker_code, c]))
+
+    return codes.map(code => {
+      const entry = entries.find(e => e.sticker_code === code)
+      const catalogEntry = catalogMap.get(code)
+
+      let status: 'new' | 'duplicate' | 'pasted' = 'new'
+      if (entry) {
+        status = entry.is_pasted ? 'pasted' : 'duplicate'
+      }
+
+      return {
+        code,
+        status,
+        countryName: entry?.country_name ?? catalogEntry?.country_name ?? code,
+        currentQty: entry?.quantity_owned ?? 0,
+      }
+    })
+  }, [entries])
 
   // Inicializar câmera
   useEffect(() => {
@@ -80,7 +110,6 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
 
       ctx.drawImage(video, 0, 0)
 
-      // Usar Google Vision API via Edge Function
       const blob = await new Promise<Blob | null>(resolve => {
         canvas.toBlob(resolve, 'image/jpeg')
       })
@@ -90,16 +119,20 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
         return
       }
 
-      // Chamar Edge Function 'ocr'
       const text = await recognizeText(blob)
       const { codes } = await extractAndValidateCodes(text)
 
       if (codes.length === 0) {
         toast('Nenhuma figurinha identificada. Tente outra posição.', { icon: '📷' })
       } else {
+        // ✅ NOVO: Enriquecer com status
+        const enriched = await enrichDetected(codes)
         setDetected(prev => {
-          const merged = new Set([...prev, ...codes])
-          return [...merged]
+          const merged = new Map(prev.map(d => [d.code, d]))
+          for (const d of enriched) {
+            merged.set(d.code, d)
+          }
+          return [...merged.values()]
         })
         toast.success(`${codes.length} figurinha${codes.length !== 1 ? 's' : ''} identificada${codes.length !== 1 ? 's' : ''}`)
       }
@@ -109,7 +142,7 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
     } finally {
       setProcessing(false)
     }
-  }, [processing])
+  }, [processing, enrichDetected])
 
   const handleGalleryUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -123,9 +156,14 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
       if (codes.length === 0) {
         toast('Nenhuma figurinha identificada nesta imagem.')
       } else {
+        // ✅ NOVO: Enriquecer com status
+        const enriched = await enrichDetected(codes)
         setDetected(prev => {
-          const merged = new Set([...prev, ...codes])
-          return [...merged]
+          const merged = new Map(prev.map(d => [d.code, d]))
+          for (const d of enriched) {
+            merged.set(d.code, d)
+          }
+          return [...merged.values()]
         })
         toast.success(`${codes.length} figurinha${codes.length !== 1 ? 's' : ''} identificada${codes.length !== 1 ? 's' : ''}`)
       }
@@ -136,15 +174,16 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
       setProcessing(false)
       event.target.value = ''
     }
-  }, [])
+  }, [enrichDetected])
 
   const handleSave = useCallback(async () => {
     if (saving || detected.length === 0) return
     setSaving(true)
     try {
-      const count = await saveScannedStickers(detected)
+      const codes = detected.map(d => d.code)
+      const count = await saveScannedStickers(codes)
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
-      onConfirm(detected)
+      onConfirm(codes)
       setDetected([])
     } catch (error) {
       console.error('[GoogleVisionScanner] Save error:', error)
@@ -153,6 +192,14 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
       setSaving(false)
     }
   }, [detected, saving, saveScannedStickers, onConfirm])
+
+  const handleRemove = useCallback((code: string) => {
+    setDetected(prev => prev.filter(d => d.code !== code))
+  }, [])
+
+  const newCount = detected.filter(d => d.status === 'new').length
+  const repetidasCount = detected.filter(d => d.status === 'duplicate').length
+  const coladasCount = detected.filter(d => d.status === 'pasted').length
 
   return (
     <div className="fixed inset-0 z-[100] bg-ink-900 flex flex-col">
@@ -252,19 +299,79 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
         </div>
       )}
 
-      {/* Resultado e botão salvar */}
+      {/* ✅ NOVO: Preview com Status */}
       {detected.length > 0 && (
-        <div className="p-4 bg-ink-800/50 border-t border-ink-700 space-y-3">
-          <div className="max-h-24 overflow-y-auto">
-            <div className="flex flex-wrap gap-2">
-              {detected.map(code => (
-                <span key={code} className="px-2.5 py-1 bg-ink-700 text-ink-200 rounded-full font-mono text-xs">
-                  {code}
-                </span>
-              ))}
+        <div className="bg-ink-800/50 border-t border-ink-700 flex flex-col max-h-96">
+          {/* Status Tags */}
+          <div className="px-4 py-2 flex gap-2 flex-wrap flex-shrink-0 border-b border-ink-700/30">
+            {newCount > 0 && (
+              <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3B82F6' }}>
+                ✓ {newCount} nova{newCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {repetidasCount > 0 && (
+              <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+                🔁 {repetidasCount} repetida{repetidasCount !== 1 ? 's' : ''}
+              </span>
+            )}
+            {coladasCount > 0 && (
+              <span className="text-xs font-body px-2.5 py-1 rounded-full" style={{ backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80' }}>
+                ✔ {coladasCount} colada{coladasCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+
+          {/* Lista de Figurinhas com Status */}
+          <div className="overflow-y-auto flex-1">
+            <div className="divide-y divide-ink-700/20">
+              {detected.map(d => {
+                let statusColor = '#3B82F6'
+                let statusBg = 'rgba(59,130,246,0.08)'
+                let statusLabel = 'Nova'
+                let statusSymbol = '✓'
+
+                if (d.status === 'duplicate') {
+                  statusColor = '#F59E0B'
+                  statusBg = 'rgba(245,158,11,0.08)'
+                  statusLabel = 'Repetida'
+                  statusSymbol = '🔁'
+                } else if (d.status === 'pasted') {
+                  statusColor = '#4ADE80'
+                  statusBg = 'rgba(74,222,128,0.08)'
+                  statusLabel = 'Colada'
+                  statusSymbol = '✔'
+                }
+
+                return (
+                  <div key={d.code} className="flex items-center gap-3 px-4 py-3">
+                    <div className="w-12 h-9 rounded-lg bg-ink-700 flex items-center justify-center flex-shrink-0">
+                      <span className="font-mono text-xs text-ink-100 font-bold">{d.code}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm text-ink-100 truncate">{d.countryName}</p>
+                      <p className="text-ink-500 text-xs">
+                        {d.status === 'new' ? 'Pode ser colada' : d.status === 'pasted' ? 'Já colada' : `Já tem ${d.currentQty} · será repetida`}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="text-xs font-body px-2 py-1 rounded-full" style={{ backgroundColor: statusBg, color: statusColor }}>
+                        {statusSymbol} {statusLabel}
+                      </span>
+                      <button
+                        onClick={() => handleRemove(d.code)}
+                        className="w-6 h-6 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
-          <div className="flex gap-2">
+
+          {/* Botões Ação */}
+          <div className="flex gap-2 p-4 border-t border-ink-700 flex-shrink-0">
             <button
               onClick={() => setDetected([])}
               className="flex-1 py-2.5 bg-ink-700 hover:bg-ink-600 rounded-lg font-semibold text-sm text-ink-300 transition"
