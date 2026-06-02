@@ -1,10 +1,8 @@
 'use client'
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { X, ChevronLeft } from 'lucide-react'
-import { useRealtimeScanner } from '@/hooks/useRealtimeScanner'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { StickerOverlay } from '@/components/scanner/StickerOverlay'
-import type { DetectedSticker as HookDetectedSticker } from '@/hooks/useRealtimeScanner'
 import type { DetectedSticker, StickerDetectionStatus } from '@/services/realtimeScanner'
 import toast from 'react-hot-toast'
 
@@ -14,27 +12,17 @@ interface PRDScannerProps {
   onClose: () => void
 }
 
-function mapHookStatusToOverlayStatus(hookStatus: string): StickerDetectionStatus {
-  switch (hookStatus) {
-    case 'pasted':
-      return 'colada'
-    case 'duplicate':
-      return 'repetida'
-    case 'new':
-    case 'owned':
-    default:
-      return 'faltante'
-  }
-}
-
 export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [detected, setDetected] = useState<DetectedSticker[]>([])
   const [saving, setSaving] = useState(false)
   const [isActive, setIsActive] = useState(false)
+  const [capturing, setCapturing] = useState(false)
 
+  const entries = useInventarioStore((s) => s.entries)
   const { saveWithStatus } = useInventarioStore()
 
   // Inicializar câmera
@@ -80,27 +68,42 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     }
   }, [])
 
-  // Hook de scanner (usa videoRef com OpenCV calibrado + Tesseract)
-  const { detected: hookDetected, readyState } = useRealtimeScanner(
-    videoRef as React.RefObject<HTMLVideoElement>,
-    stickers,
-    isActive && !cameraError
-  )
+  // Capturar frame do vídeo e processar com OCR
+  const capture = useCallback(async () => {
+    if (capturing || !videoRef.current || !canvasRef.current) return
+    setCapturing(true)
+    try {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      canvas.getContext('2d')!.drawImage(video, 0, 0)
 
-  // Atualizar lista acumulada (converter tipos do hook para overlay)
-  useEffect(() => {
-    setDetected(prev => {
-      const merged = new Map(prev.map(d => [d.code, d]))
-      for (const d of hookDetected) {
-        const converted: DetectedSticker = {
-          code: d.code,
-          status: mapHookStatusToOverlayStatus(d.status),
-        }
-        merged.set(d.code, converted)
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob((b) => b ? res(b) : rej(new Error('Canvas empty')), 'image/jpeg', 0.9)
+      )
+
+      const { processFrame } = await import('@/services/realtimeScanner')
+      const frame = await processFrame(canvas, entries, blob)
+
+      setDetected(prev => {
+        const merged = new Map(prev.map(d => [d.code, d]))
+        for (const d of frame.detected) merged.set(d.code, d)
+        return [...merged.values()]
+      })
+
+      if (frame.detected.length === 0) {
+        toast('Nenhuma figurinha identificada.', { icon: '📷' })
+      } else {
+        toast.success(`+${frame.detected.length} figurinha(s) detectada(s)!`)
       }
-      return [...merged.values()]
-    })
-  }, [hookDetected])
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido'
+      toast.error(msg)
+    } finally {
+      setCapturing(false)
+    }
+  }, [capturing, entries])
 
   const handleRemoveSticker = useCallback((code: string) => {
     setDetected(prev => prev.filter(x => x.code !== code))
@@ -126,9 +129,6 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     }
   }, [detected, saving, saveWithStatus, onConfirm])
 
-  const isLoading = readyState === 'loading_opencv' || readyState === 'loading_ocr'
-  const isError = readyState === 'error'
-
   return (
     <div className="fixed inset-0 z-[100] bg-ink-900 flex flex-col">
       {/* Header */}
@@ -140,54 +140,40 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
           <ChevronLeft size={18} />
           Voltar
         </button>
-        <div className="text-xs font-body text-ink-500 tracking-wide">🔬 PRD SCANNER (Calibrado)</div>
+        <div className="text-xs font-body text-ink-500 tracking-wide">🔬 PRD SCANNER</div>
         <div className="text-xs text-ink-500">
-          {isLoading ? '⟳' : isError ? '⚠️' : detected.length > 0 ? `${detected.length}` : '—'}
+          {capturing ? '⟳' : detected.length > 0 ? `${detected.length}` : '—'}
         </div>
       </div>
 
       {/* Câmera */}
       <div className="flex-1 relative bg-black overflow-hidden">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          className="w-full h-full object-cover"
-        />
-
-        {/* Overlay com status dos stickers detectados */}
-        {detected.length > 0 && (
-          <div className="absolute inset-0 pointer-events-none">
-            <StickerOverlay detected={detected} />
+        {cameraError ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-ink-400 text-sm text-center px-4">{cameraError}</p>
           </div>
-        )}
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
 
-        {/* Estado de carregamento */}
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="text-center">
-              <div className="w-10 h-10 border-2 border-gold-400 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-gold-400 font-semibold text-sm">
-                {readyState === 'loading_opencv' ? 'Carregando OpenCV...' : 'Inicializando OCR...'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Erro */}
-        {(isError || cameraError) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="text-center">
-              <p className="text-red-400 font-semibold mb-2">⚠️ Erro</p>
-              <p className="text-ink-400 text-sm">{cameraError || 'Erro ao inicializar scanner'}</p>
-            </div>
-          </div>
+            {/* Overlay com status dos stickers detectados */}
+            {detected.length > 0 && (
+              <div className="absolute inset-0 pointer-events-none">
+                <StickerOverlay detected={detected} />
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Painel de controle e resultado */}
-      {!isLoading && !isError && !cameraError && (
+      {/* Painel de controle */}
+      {!cameraError && (
         <div className="bg-ink-900/50 border-t border-ink-700 space-y-3 p-4">
           {detected.length > 0 && (
             <div className="max-h-32 overflow-y-auto">
@@ -241,13 +227,19 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
               </>
             )}
             {detected.length === 0 && (
-              <div className="text-xs text-ink-500 text-center w-full py-2">
-                Aponte a câmera para as figurinhas...
-              </div>
+              <button
+                onClick={() => void capture()}
+                disabled={capturing}
+                className="w-full py-3 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-lg font-semibold text-sm text-ink-900 transition"
+              >
+                {capturing ? '⟳ Capturando...' : '📷 Capturar'}
+              </button>
             )}
           </div>
         </div>
       )}
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   )
 }
