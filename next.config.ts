@@ -23,19 +23,21 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  runtimeCaching: [
-    {
-      urlPattern: /^https:\/\/.*\.supabase\.co\/.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'supabase-cache',
-        expiration: { maxAgeSeconds: 60 },
-      },
-    },
-  ],
-})(nextConfig)
+// Desabilitar PWA temporariamente para resolver erro de build em produção
+export default nextConfig
+// export default withPWA({
+//   dest: 'public',
+//   register: true,
+//   skipWaiting: true,
+//   disable: process.env.NODE_ENV === 'development',
+//   runtimeCaching: [
+//     {
+//       urlPattern: /^https:\/\/.*\.supabase\.co\/.*/,
+//       handler: 'NetworkFirst',
+//       options: {
+//         cacheName: 'supabase-cache',
+//         expiration: { maxAgeSeconds: 60 },
+//       },
+//     },
+//   ],
+// })(nextConfig)
