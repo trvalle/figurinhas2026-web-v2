@@ -14,16 +14,13 @@ interface PRDScannerProps {
 
 export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [detected, setDetected] = useState<DetectedSticker[]>([])
   const [saving, setSaving] = useState(false)
   const [isActive, setIsActive] = useState(false)
-  const [capturing, setCapturing] = useState(false)
 
-  const entries = useInventarioStore((s) => s.entries)
-  const { saveWithStatus } = useInventarioStore()
+  const { saveScannedStickers } = useInventarioStore()
 
   // Inicializar câmera
   useEffect(() => {
@@ -68,42 +65,6 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     }
   }, [])
 
-  // Capturar frame do vídeo e processar com OCR
-  const capture = useCallback(async () => {
-    if (capturing || !videoRef.current || !canvasRef.current) return
-    setCapturing(true)
-    try {
-      const video = videoRef.current
-      const canvas = canvasRef.current
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      canvas.getContext('2d')!.drawImage(video, 0, 0)
-
-      const blob = await new Promise<Blob>((res, rej) =>
-        canvas.toBlob((b) => b ? res(b) : rej(new Error('Canvas empty')), 'image/jpeg', 0.9)
-      )
-
-      const { processFrame } = await import('@/services/realtimeScanner')
-      const frame = await processFrame(canvas, entries, blob)
-
-      setDetected(prev => {
-        const merged = new Map(prev.map(d => [d.code, d]))
-        for (const d of frame.detected) merged.set(d.code, d)
-        return [...merged.values()]
-      })
-
-      if (frame.detected.length === 0) {
-        toast('Nenhuma figurinha identificada.', { icon: '📷' })
-      } else {
-        toast.success(`+${frame.detected.length} figurinha(s) detectada(s)!`)
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erro desconhecido'
-      toast.error(msg)
-    } finally {
-      setCapturing(false)
-    }
-  }, [capturing, entries])
 
   const handleRemoveSticker = useCallback((code: string) => {
     setDetected(prev => prev.filter(x => x.code !== code))
@@ -117,7 +78,7 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     if (saving || detected.length === 0) return
     setSaving(true)
     try {
-      const count = await saveWithStatus(detected.map(d => ({ code: d.code, status: d.status })))
+      const count = await saveScannedStickers(detected.map(d => d.code))
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
       onConfirm(detected.map(d => d.code))
       setDetected([])
@@ -127,7 +88,7 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
     } finally {
       setSaving(false)
     }
-  }, [detected, saving, saveWithStatus, onConfirm])
+  }, [detected, saving, saveScannedStickers, onConfirm])
 
   return (
     <div className="fixed inset-0 z-[100] bg-ink-900 flex flex-col">
@@ -140,39 +101,41 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
           <ChevronLeft size={18} />
           Voltar
         </button>
-        <div className="text-xs font-body text-ink-500 tracking-wide">🔬 PRD SCANNER</div>
+        <div className="text-xs font-body text-ink-500 tracking-wide">🔬 PRD SCANNER (Calibrado)</div>
         <div className="text-xs text-ink-500">
-          {capturing ? '⟳' : detected.length > 0 ? `${detected.length}` : '—'}
+          {detected.length > 0 ? `${detected.length}` : '—'}
         </div>
       </div>
 
       {/* Câmera */}
       <div className="flex-1 relative bg-black overflow-hidden">
-        {cameraError ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-ink-400 text-sm text-center px-4">{cameraError}</p>
-          </div>
-        ) : (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover"
+        />
 
-            {/* Overlay com status dos stickers detectados */}
-            {detected.length > 0 && (
-              <div className="absolute inset-0 pointer-events-none">
-                <StickerOverlay detected={detected} />
-              </div>
-            )}
-          </>
+        {/* Overlay com status dos stickers detectados */}
+        {detected.length > 0 && (
+          <div className="absolute inset-0 pointer-events-none">
+            <StickerOverlay detected={detected} />
+          </div>
+        )}
+
+        {/* Erro */}
+        {cameraError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className="text-center">
+              <p className="text-red-400 font-semibold mb-2">⚠️ Erro</p>
+              <p className="text-ink-400 text-sm">{cameraError}</p>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Painel de controle */}
+      {/* Painel de controle e resultado */}
       {!cameraError && (
         <div className="bg-ink-900/50 border-t border-ink-700 space-y-3 p-4">
           {detected.length > 0 && (
@@ -227,19 +190,13 @@ export default function PRDScanner({ stickers, onConfirm, onClose }: PRDScannerP
               </>
             )}
             {detected.length === 0 && (
-              <button
-                onClick={() => void capture()}
-                disabled={capturing}
-                className="w-full py-3 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 rounded-lg font-semibold text-sm text-ink-900 transition"
-              >
-                {capturing ? '⟳ Capturando...' : '📷 Capturar'}
-              </button>
+              <div className="text-xs text-ink-500 text-center w-full py-2">
+                Aponte a câmera para as figurinhas...
+              </div>
             )}
           </div>
         </div>
       )}
-
-      <canvas ref={canvasRef} className="hidden" />
     </div>
   )
 }
