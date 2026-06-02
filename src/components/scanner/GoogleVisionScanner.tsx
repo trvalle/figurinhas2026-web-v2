@@ -447,54 +447,6 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
             )}
           </div>
 
-          {/* Lista de Figurinhas com Status */}
-          <div className="overflow-y-auto flex-1">
-            <div className="divide-y divide-ink-700/20">
-              {detected.map(d => {
-                let statusColor = '#3B82F6'
-                let statusBg = 'rgba(59,130,246,0.08)'
-                let statusLabel = 'Nova'
-                let statusSymbol = '✓'
-
-                if (d.status === 'duplicate') {
-                  statusColor = '#F59E0B'
-                  statusBg = 'rgba(245,158,11,0.08)'
-                  statusLabel = 'Repetida'
-                  statusSymbol = '🔁'
-                } else if (d.status === 'pasted') {
-                  statusColor = '#4ADE80'
-                  statusBg = 'rgba(74,222,128,0.08)'
-                  statusLabel = 'Colada'
-                  statusSymbol = '✔'
-                }
-
-                return (
-                  <div key={d.code} className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-12 h-9 rounded-lg bg-ink-700 flex items-center justify-center flex-shrink-0">
-                      <span className="font-mono text-xs text-ink-100 font-bold">{d.code}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-ink-100 truncate">{d.countryName}</p>
-                      <p className="text-ink-500 text-xs">
-                        {d.status === 'new' ? 'Pode ser colada' : d.status === 'pasted' ? 'Já colada' : `Já tem ${d.currentQty} · será repetida`}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs font-body px-2 py-1 rounded-full" style={{ backgroundColor: statusBg, color: statusColor }}>
-                        {statusSymbol} {statusLabel}
-                      </span>
-                      <button
-                        onClick={() => handleRemove(d.code)}
-                        className="w-6 h-6 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
 
           {/* ✅ NOVO: Listagem com Símbolos */}
           {detected.length > 0 && (
