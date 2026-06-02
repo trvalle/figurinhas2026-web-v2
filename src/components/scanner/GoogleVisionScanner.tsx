@@ -250,18 +250,13 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
               let statusColor = '#3B82F6'
               let statusBg = 'rgba(59,130,246,0.08)'
               let statusLabel = 'Nova'
-              let statusSymbol = '✓'
+              let statusSymbol = '✅'
 
-              if (d.status === 'duplicate') {
+              if (d.status === 'duplicate' || d.status === 'pasted') {
                 statusColor = '#F59E0B'
                 statusBg = 'rgba(245,158,11,0.08)'
                 statusLabel = 'Repetida'
                 statusSymbol = '🔁'
-              } else if (d.status === 'pasted') {
-                statusColor = '#4ADE80'
-                statusBg = 'rgba(74,222,128,0.08)'
-                statusLabel = 'Colada'
-                statusSymbol = '✔'
               }
 
               return (
