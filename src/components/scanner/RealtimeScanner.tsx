@@ -234,33 +234,79 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
         </div>
       </div>
 
-      <div className="flex gap-2 px-4 py-2 bg-ink-800/50 flex-shrink-0 overflow-x-auto min-h-[44px] items-center">
-        {detected.length === 0
-          ? <span className="text-ink-500 text-xs font-body">Aponte para as figurinhas e toque em Capturar</span>
-          : <>
-              {detected.map((d) => {
-                const isNew = d.status === 'faltante'
-                return (
-                  <span
-                    key={d.code}
-                    className="flex-shrink-0 text-xs font-mono px-2 py-1 rounded-full flex items-center gap-1"
-                    style={isNew
-                      ? { backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80' }
-                      : { backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }
-                    }
-                  >
-                    {d.code}
-                    <span>{isNew ? '✓' : '🔁'}</span>
-                  </span>
-                )
-              })}
-              <button
-                onClick={() => setDetected([])}
-                className="flex-shrink-0 text-xs font-body text-ink-600 hover:text-scarlet-400 transition-colors ml-1 px-1"
-              >
-                ✕
-              </button>
-            </>}
+      <div className="flex-shrink-0 bg-ink-800/50 px-4 py-3 space-y-2">
+        {/* Linha de Contagem */}
+        {detected.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {newCount > 0 && (
+              <span className="text-xs font-body px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3B82F6' }}>
+                ✦ {newCount} para colar
+              </span>
+            )}
+            {repetidasCount > 0 && (
+              <span className="text-xs font-body px-2.5 py-1 rounded-full"
+                style={{ backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+                🔁 {repetidasCount} repetida{repetidasCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Tags de Figurinhas com Símbolos Claros */}
+        <div className="flex gap-2 overflow-x-auto min-h-[32px] items-center flex-wrap">
+          {detected.length === 0
+            ? <span className="text-ink-500 text-xs font-body">Aponte para as figurinhas e toque em Capturar</span>
+            : <>
+                {detected.map((d) => {
+                  // Mapear status para símbolo, cor e tooltip
+                  let symbol = ''
+                  let bgColor = ''
+                  let textColor = ''
+                  let tooltip = ''
+
+                  switch (d.status) {
+                    case 'faltante':
+                      symbol = '✦'
+                      bgColor = 'rgba(59,130,246,0.15)'
+                      textColor = '#3B82F6'
+                      tooltip = 'Para colar no álbum'
+                      break
+                    case 'repetida':
+                      symbol = '🔁'
+                      bgColor = 'rgba(245,158,11,0.15)'
+                      textColor = '#F59E0B'
+                      tooltip = 'Já tem no inventário (repetida)'
+                      break
+                    case 'colada':
+                      symbol = '✓'
+                      bgColor = 'rgba(74,222,128,0.15)'
+                      textColor = '#4ADE80'
+                      tooltip = 'Já colada no álbum'
+                      break
+                  }
+
+                  return (
+                    <span
+                      key={d.code}
+                      className="flex-shrink-0 text-xs font-mono px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-help"
+                      style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${textColor}33` }}
+                      title={tooltip}
+                    >
+                      <span className="font-bold">{d.code}</span>
+                      <span className="text-sm font-bold">{symbol}</span>
+                    </span>
+                  )
+                })}
+                <button
+                  onClick={() => setDetected([])}
+                  className="flex-shrink-0 text-xs font-body text-ink-600 hover:text-scarlet-400 transition-colors px-2 py-1 rounded-lg hover:bg-scarlet-400/10"
+                  title="Limpar todas as detecções"
+                >
+                  ✕ Limpar
+                </button>
+              </>}
+        </div>
       </div>
 
       {detected.length > 0 && (
