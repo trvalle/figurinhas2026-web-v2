@@ -6,6 +6,7 @@ import { Zap, Pencil, Plus, ChevronDown } from 'lucide-react'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { ScanResultScreen } from '@/components/scanner/ScanResultScreen'
 import { HelpModal } from '@/components/tutorial/HelpModal'
+import { loadCatalogCache } from '@/services/ocr'
 
 const GoogleVisionScanner = dynamic(
   () => import('@/components/scanner/GoogleVisionScanner'),
@@ -13,6 +14,11 @@ const GoogleVisionScanner = dynamic(
 )
 
 type ActivePanel = 'realtime' | 'manual' | null
+
+interface ManualStickerWithStatus {
+  code: string
+  status: 'new' | 'duplicate' | 'pasted'
+}
 
 const PANELS: { key: NonNullable<ActivePanel>; icon: React.ElementType; label: string; sub: string }[] = [
   { key: 'realtime', icon: Zap,    label: 'Tempo Real', sub: 'Google Vision API' },
@@ -24,7 +30,7 @@ export default function ScanPage() {
   const [result, setResult] = useState<string[] | null>(null)
   const [resultSource, setResultSource] = useState('')
   const [manualCode, setManualCode] = useState('')
-  const [manualCodes, setManualCodes] = useState<string[]>([])
+  const [manualCodes, setManualCodes] = useState<ManualStickerWithStatus[]>([])
   const [helpVisible, setHelpVisible] = useState(false)
   const { saveScannedStickers, entries } = useInventarioStore()
 
@@ -43,11 +49,31 @@ export default function ScanPage() {
   const normalizeCode = (raw: string): string =>
     raw.trim().toUpperCase().replace(/^([A-Z]{2,3})[\s\-]*([0-9]{1,2})$/, '$1 $2')
 
-  const addManual = () => {
+  const enrichCode = useCallback(async (code: string): Promise<ManualStickerWithStatus> => {
+    const entry = entries.find(e => e.sticker_code === code)
+
+    let status: 'new' | 'duplicate' | 'pasted' = 'new'
+    if (entry) {
+      status = entry.is_pasted ? 'pasted' : 'duplicate'
+    }
+
+    return { code, status }
+  }, [entries])
+
+  const addManual = useCallback(async () => {
     const code = normalizeCode(manualCode)
-    if (code && !manualCodes.includes(code)) setManualCodes((p) => [...p, code])
+    if (!code) return
+
+    if (manualCodes.some(c => c.code === code)) {
+      toast('Código já adicionado', { icon: '⚠️' })
+      setManualCode('')
+      return
+    }
+
+    const enriched = await enrichCode(code)
+    setManualCodes((p) => [...p, enriched])
     setManualCode('')
-  }
+  }, [manualCode, manualCodes, normalizeCode, enrichCode])
 
   if (result !== null) {
     return (
@@ -121,12 +147,12 @@ export default function ScanPage() {
                         <input
                           value={manualCode}
                           onChange={(e) => setManualCode(e.target.value.toUpperCase())}
-                          onKeyDown={(e) => e.key === 'Enter' && addManual()}
+                          onKeyDown={(e) => e.key === 'Enter' && void addManual()}
                           placeholder="Ex: BRA 7"
                           className="flex-1 bg-ink-700 border border-ink-600 rounded-lg px-3 py-2.5 font-mono text-sm text-ink-100 placeholder:text-ink-600 focus:outline-none focus:border-gold-500"
                         />
                         <button
-                          onClick={addManual}
+                          onClick={() => void addManual()}
                           className="w-11 h-11 bg-gold-500 rounded-lg flex items-center justify-center flex-shrink-0"
                         >
                           <Plus size={18} className="text-ink-900" />
@@ -135,18 +161,21 @@ export default function ScanPage() {
                       {manualCodes.length > 0 && (
                         <>
                           <div className="flex flex-wrap gap-2">
-                            {manualCodes.map((c) => (
-                              <span
-                                key={c}
-                                onClick={() => setManualCodes((prev) => prev.filter((x) => x !== c))}
-                                className="px-2.5 py-1 bg-ink-700 text-ink-200 rounded-full font-mono text-xs cursor-pointer hover:bg-scarlet-500/20 hover:text-scarlet-400 transition-colors"
-                              >
-                                {c} ×
-                              </span>
-                            ))}
+                            {manualCodes.map((item) => {
+                              const symbol = item.status === 'new' ? '✅' : '🔁'
+                              return (
+                                <span
+                                  key={item.code}
+                                  onClick={() => setManualCodes((prev) => prev.filter((x) => x.code !== item.code))}
+                                  className="px-2.5 py-1 bg-ink-700 text-ink-200 rounded-full font-mono text-xs cursor-pointer hover:bg-scarlet-500/20 hover:text-scarlet-400 transition-colors"
+                                >
+                                  {item.code}{symbol} ×
+                                </span>
+                              )
+                            })}
                           </div>
                           <button
-                            onClick={() => handleCodes(manualCodes, 'Manual')}
+                            onClick={() => handleCodes(manualCodes.map(c => c.code), 'Manual')}
                             className="w-full py-2.5 bg-gold-500 hover:bg-gold-600 rounded-lg font-heading font-bold text-ink-900 text-sm transition-colors"
                           >
                             Ver resultado ({manualCodes.length})
