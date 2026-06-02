@@ -496,6 +496,20 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
             </div>
           </div>
 
+          {/* ✅ NOVO: Listagem com Símbolos */}
+          {detected.length > 0 && (
+            <div className="px-4 py-3 bg-ink-800/50 border-t border-ink-700 flex-shrink-0">
+              <p className="text-xs text-ink-500 font-body mb-2">Detectadas:</p>
+              <div className="flex flex-wrap gap-1">
+                {detected.map(d => (
+                  <span key={d.code} className="text-xs font-mono px-2 py-1 rounded-lg bg-ink-700 text-ink-200">
+                    {d.code}{d.status === 'new' ? '✅' : '🔁'}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Botões Ação */}
           <div className="flex gap-2 p-4 border-t border-ink-700 flex-shrink-0">
             <button
