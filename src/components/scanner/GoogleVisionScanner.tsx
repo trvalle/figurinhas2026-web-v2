@@ -155,7 +155,7 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
 
     setProcessing(true)
     try {
-      const text = await recognizeText(file)
+      const text = await ocrProvider.recognizeText(file)
       const { codes } = await extractAndValidateCodes(text)
 
       if (codes.length === 0) {
