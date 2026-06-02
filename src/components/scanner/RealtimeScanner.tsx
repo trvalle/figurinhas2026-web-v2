@@ -158,21 +158,23 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
                       {isNew ? 'Pode ser colada no álbum' : `Já tem ${currentQty} · ficará com ${currentQty + 1} (repetida)`}
                     </p>
                   </div>
-                  <span
-                    className="text-xs font-body px-2.5 py-1 rounded-full flex-shrink-0"
-                    style={isNew
-                      ? { backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80' }
-                      : { backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }
-                    }
-                  >
-                    {isNew ? '✓ Nova' : '🔁 Repetida'}
-                  </span>
-                  <button
-                    onClick={() => setDetected((prev) => prev.filter((x) => x.code !== d.code))}
-                    className="w-7 h-7 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition-colors flex-shrink-0"
-                  >
-                    <X size={14} />
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span
+                      className="text-xs font-body px-2.5 py-1 rounded-full"
+                      style={isNew
+                        ? { backgroundColor: 'rgba(74,222,128,0.12)', color: '#4ADE80' }
+                        : { backgroundColor: 'rgba(245,158,11,0.12)', color: '#F59E0B' }
+                      }
+                    >
+                      {isNew ? '✓ Nova' : '🔁 Repetida'}
+                    </span>
+                    <button
+                      onClick={() => setDetected((prev) => prev.filter((x) => x.code !== d.code))}
+                      className="w-7 h-7 flex items-center justify-center text-ink-600 hover:text-scarlet-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -254,47 +256,47 @@ export function RealtimeScanner({ onClose }: RealtimeScannerProps) {
         )}
 
         {/* Tags de Figurinhas com Símbolos Claros */}
-        <div className="flex gap-2 overflow-x-auto min-h-[32px] items-center flex-wrap">
+        <div className="flex gap-2 overflow-x-auto min-h-[36px] items-center flex-wrap px-0.5">
           {detected.length === 0
             ? <span className="text-ink-500 text-xs font-body">Aponte para as figurinhas e toque em Capturar</span>
             : <>
                 {detected.map((d) => {
                   // Mapear status para símbolo, cor e tooltip
-                  let symbol = ''
-                  let bgColor = ''
-                  let textColor = ''
-                  let tooltip = ''
+                  let symbol = '?'
+                  let bgColor = 'rgba(107,114,128,0.15)'
+                  let textColor = '#6B7280'
+                  let tooltip = 'Status desconhecido'
+                  let statusText = ''
 
-                  switch (d.status) {
-                    case 'faltante':
-                      symbol = '✦'
-                      bgColor = 'rgba(59,130,246,0.15)'
-                      textColor = '#3B82F6'
-                      tooltip = 'Para colar no álbum'
-                      break
-                    case 'repetida':
-                      symbol = '🔁'
-                      bgColor = 'rgba(245,158,11,0.15)'
-                      textColor = '#F59E0B'
-                      tooltip = 'Já tem no inventário (repetida)'
-                      break
-                    case 'colada':
-                      symbol = '✓'
-                      bgColor = 'rgba(74,222,128,0.15)'
-                      textColor = '#4ADE80'
-                      tooltip = 'Já colada no álbum'
-                      break
+                  if (d.status === 'faltante') {
+                    symbol = '✦'
+                    bgColor = 'rgba(59,130,246,0.2)'
+                    textColor = '#3B82F6'
+                    tooltip = 'Para colar no álbum'
+                    statusText = 'Nova'
+                  } else if (d.status === 'repetida') {
+                    symbol = '🔁'
+                    bgColor = 'rgba(245,158,11,0.2)'
+                    textColor = '#F59E0B'
+                    tooltip = 'Já tem no inventário (repetida)'
+                    statusText = 'Repetida'
+                  } else if (d.status === 'colada') {
+                    symbol = '✓'
+                    bgColor = 'rgba(74,222,128,0.2)'
+                    textColor = '#4ADE80'
+                    tooltip = 'Já colada no álbum'
+                    statusText = 'Colada'
                   }
 
                   return (
                     <span
                       key={d.code}
-                      className="flex-shrink-0 text-xs font-mono px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 hover:opacity-80 transition-opacity cursor-help"
-                      style={{ backgroundColor: bgColor, color: textColor, border: `1px solid ${textColor}33` }}
+                      className="flex-shrink-0 text-xs font-mono px-3 py-2 rounded-lg flex items-center gap-2 hover:opacity-90 transition-opacity cursor-help border"
+                      style={{ backgroundColor: bgColor, color: textColor, borderColor: textColor + '40' }}
                       title={tooltip}
                     >
-                      <span className="font-bold">{d.code}</span>
-                      <span className="text-sm font-bold">{symbol}</span>
+                      <span className="font-bold whitespace-nowrap">{d.code}</span>
+                      <span className="text-sm font-bold whitespace-nowrap">{symbol} {statusText}</span>
                     </span>
                   )
                 })}
