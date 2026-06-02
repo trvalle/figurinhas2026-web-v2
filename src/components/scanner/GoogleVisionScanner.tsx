@@ -2,7 +2,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { X, Zap, PackagePlus, ChevronLeft, Upload } from 'lucide-react'
 import { useInventarioStore } from '@/stores/inventarioStore'
-import { recognizeText, extractAndValidateCodes, loadCatalogCache } from '@/services/ocr'
+import { useOCRProviderStore } from '@/stores/ocrProviderStore'
+import { extractAndValidateCodes, loadCatalogCache } from '@/services/ocr'
+import { getOCRProvider, listOCRProviders } from '@/services/ocrProviders'
 import toast from 'react-hot-toast'
 
 interface DetectedSticker {
@@ -30,6 +32,8 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const [showPreview, setShowPreview] = useState(false)
 
   const { saveScannedStickers, entries, missing } = useInventarioStore()
+  const { selectedProvider, setSelectedProvider } = useOCRProviderStore()
+  const ocrProvider = getOCRProvider(selectedProvider)
 
   // Enriquecer código com status e país
   const enrichDetected = useCallback(async (codes: string[]) => {
@@ -120,7 +124,7 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
         return
       }
 
-      const text = await recognizeText(blob)
+      const text = await ocrProvider.recognizeText(blob)
       const { codes } = await extractAndValidateCodes(text)
 
       if (codes.length === 0) {
@@ -333,7 +337,20 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
           <ChevronLeft size={18} />
           Voltar
         </button>
-        <div className="text-xs font-body text-ink-500 tracking-wide">⚡ TEMPO REAL (Google Vision)</div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-body text-ink-500 tracking-wide">⚡ TEMPO REAL</span>
+          <select
+            value={selectedProvider}
+            onChange={(e) => setSelectedProvider(e.target.value as any)}
+            className="text-xs bg-ink-800 border border-ink-700 rounded px-2 py-1 text-ink-200 hover:border-gold-500 transition focus:outline-none focus:border-gold-500"
+          >
+            {listOCRProviders().map(provider => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="text-xs text-ink-500">{detected.length > 0 ? `${detected.length}` : '—'}</div>
       </div>
 
