@@ -1,8 +1,10 @@
 import type { OCRProvider, OCRProviderType } from '@/types/ocrProvider'
 import { googleVisionProvider } from './googleVision'
+import { tesseractProvider } from './tesseract'
 
 const PROVIDERS: Record<OCRProviderType, OCRProvider> = {
   'google-vision': googleVisionProvider,
+  'tesseract': tesseractProvider,
 }
 
 export function getOCRProvider(type: OCRProviderType): OCRProvider {

@@ -1,4 +1,4 @@
-export type OCRProviderType = 'google-vision'
+export type OCRProviderType = 'google-vision' | 'tesseract'
 
 export interface OCRProvider {
   id: OCRProviderType
@@ -12,5 +12,9 @@ export const OCR_PROVIDERS: Record<OCRProviderType, { name: string; description:
   'google-vision': {
     name: 'Google Vision',
     description: 'Google Cloud Vision API',
+  },
+  'tesseract': {
+    name: 'Tesseract (Offline)',
+    description: 'Processamento local, sem custo. Funciona sem internet.',
   },
 }
