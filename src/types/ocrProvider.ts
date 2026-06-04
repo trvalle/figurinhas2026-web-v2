@@ -1,4 +1,4 @@
-export type OCRProviderType = 'google-vision' | 'tesseract'
+export type OCRProviderType = 'google-vision' | 'tesseract' | 'claude-haiku'
 
 export interface OCRProvider {
   id: OCRProviderType
@@ -16,5 +16,9 @@ export const OCR_PROVIDERS: Record<OCRProviderType, { name: string; description:
   'tesseract': {
     name: 'Tesseract (Offline)',
     description: 'Processamento local, sem custo. Funciona sem internet.',
+  },
+  'claude-haiku': {
+    name: 'Claude Haiku (IA)',
+    description: 'Claude Haiku 4.5 — Alta precisão.',
   },
 }

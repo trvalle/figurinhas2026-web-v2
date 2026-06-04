@@ -22,9 +22,11 @@ async function preprocessForOcr(input: Blob | string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
+      // ─────────────────────────────────────────────────────────────
+      // STEP 1: Resize para 1200px (preservar detalhe do badge)
+      // ─────────────────────────────────────────────────────────────
       const canvas = document.createElement('canvas')
-      // Normalizar para 800px de largura mantendo aspect ratio
-      const targetWidth = 800
+      const targetWidth = 1200
       const scale = targetWidth / img.width
       canvas.width = targetWidth
       canvas.height = img.height * scale
@@ -32,23 +34,107 @@ async function preprocessForOcr(input: Blob | string): Promise<string> {
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
 
-      // Grayscale + contrast boost via pixel manipulation
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = imageData.data
-      const contrastFactor = 1.8
+      // ─────────────────────────────────────────────────────────────
+      // STEP 2: Varredura por grid 4x4 — detectar região mais clara
+      // ─────────────────────────────────────────────────────────────
+      const gridCols = 4
+      const gridRows = 4
+      const cellWidth = Math.floor(canvas.width / gridCols)
+      const cellHeight = Math.floor(canvas.height / gridRows)
+
+      // Calcular brilho médio de cada célula
+      const cellBrightness: Array<{ brightness: number; x: number; y: number; col: number; row: number }> = []
+
+      for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+          const x = col * cellWidth
+          const y = row * cellHeight
+          const w = col === gridCols - 1 ? canvas.width - x : cellWidth
+          const h = row === gridRows - 1 ? canvas.height - y : cellHeight
+
+          const imageData = ctx.getImageData(x, y, w, h)
+          const pixels = imageData.data
+          let brightness = 0
+
+          for (let i = 0; i < pixels.length; i += 4) {
+            brightness += (0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2])
+          }
+          brightness /= (pixels.length / 4)
+
+          cellBrightness.push({ brightness, x, y, col, row })
+        }
+      }
+
+      // Ordenar por brilho descendente e pegar top 3
+      const top3 = cellBrightness.sort((a, b) => b.brightness - a.brightness).slice(0, 3)
+
+      // Verificar se alguma célula tem brilho > 180 (badge branco típico)
+      const brightest = top3[0]
+      let cropX: number
+      let cropY: number
+      let cropW: number
+      let cropH: number
+
+      if (brightest.brightness > 180) {
+        // ─────────────────────────────────────────────────────────────
+        // Crop expandido cobrindo top3 + 10% margem
+        // ─────────────────────────────────────────────────────────────
+        const minX = Math.min(...top3.map(c => c.x))
+        const maxX = Math.max(...top3.map(c => c.x + cellWidth))
+        const minY = Math.min(...top3.map(c => c.y))
+        const maxY = Math.max(...top3.map(c => c.y + cellHeight))
+
+        const marginX = Math.floor(cellWidth * 0.1)
+        const marginY = Math.floor(cellHeight * 0.1)
+
+        cropX = Math.max(0, minX - marginX)
+        cropY = Math.max(0, minY - marginY)
+        cropW = Math.min(canvas.width - cropX, maxX - minX + marginX * 2)
+        cropH = Math.min(canvas.height - cropY, maxY - minY + marginY * 2)
+      } else {
+        // Fallback: usar terço superior da imagem inteira
+        cropX = 0
+        cropY = 0
+        cropW = canvas.width
+        cropH = Math.floor(canvas.height / 3)
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // STEP 3: Extrair crop e ampliar para 400×400 (zoom no badge)
+      // ─────────────────────────────────────────────────────────────
+      const cropCanvas = document.createElement('canvas')
+      const zoomSize = 400
+      cropCanvas.width = zoomSize
+      cropCanvas.height = zoomSize
+
+      const cropCtx = cropCanvas.getContext('2d')!
+      cropCtx.drawImage(
+        canvas,
+        cropX, cropY, cropW, cropH,
+        0, 0, zoomSize, zoomSize
+      )
+
+      // ─────────────────────────────────────────────────────────────
+      // STEP 4: Grayscale + contrast mais agressivo (2.0)
+      // ─────────────────────────────────────────────────────────────
+      const zoomImageData = cropCtx.getImageData(0, 0, zoomSize, zoomSize)
+      const zoomData = zoomImageData.data
+      const contrastFactor = 2.0
       const intercept = 128 * (1 - contrastFactor)
 
-      for (let i = 0; i < data.length; i += 4) {
+      for (let i = 0; i < zoomData.length; i += 4) {
         // Grayscale: luminância ponderada
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+        const gray = 0.299 * zoomData[i] + 0.587 * zoomData[i + 1] + 0.114 * zoomData[i + 2]
         // Contrast boost
         const enhanced = Math.min(255, Math.max(0, contrastFactor * gray + intercept))
-        data[i] = data[i + 1] = data[i + 2] = enhanced
+        zoomData[i] = zoomData[i + 1] = zoomData[i + 2] = enhanced
         // data[i + 3] = alpha, não alterar
       }
 
-      ctx.putImageData(imageData, 0, 0)
-      resolve(canvas.toDataURL('image/jpeg', 0.95))
+      cropCtx.putImageData(zoomImageData, 0, 0)
+      const croppedUrl = cropCanvas.toDataURL('image/jpeg', 0.95)
+      console.log('[Tesseract CROP]', croppedUrl)
+      resolve(croppedUrl)
     }
     img.onerror = () => resolve(dataUrl) // fallback: usar original
     img.src = dataUrl
@@ -144,8 +230,8 @@ function extractAndValidateCode(rawText: string): string | null {
 }
 
 // ─── WORKER SINGLETON ─────────────────────────────────────────────────────
-// Uma única instância por sessão do browser.
-// Lazy init: só inicializa quando recognize() for chamado pela primeira vez.
+// Criado uma vez, reutilizado para todas as capturas (design recomendado v7)
+// setParameters() chamado APENAS na inicialização, não a cada recognize()
 
 let workerInstance: Worker | null = null
 let workerInitPromise: Promise<Worker> | null = null
@@ -155,24 +241,55 @@ async function getWorker(): Promise<Worker> {
   if (workerInitPromise) return workerInitPromise
 
   workerInitPromise = (async () => {
-    const worker = await createWorker('eng', undefined, {
-      logger: process.env.NODE_ENV === 'development'
-        ? (m: any) => console.debug('[Tesseract]', m)
-        : undefined,
-    })
-
-    await worker.setParameters({
-      // Whitelist: apenas chars que aparecem em códigos de figurinha
-      tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
-      // PSM 7: imagem contém uma única linha de texto (ideal para o badge da figurinha)
-      tessedit_pageseg_mode: '7' as any,
-    })
-
-    workerInstance = worker
-    return worker
+    try {
+      const worker = await createWorker('eng', 1, {
+        logger: process.env.NODE_ENV === 'development'
+          ? (m: unknown) => console.debug('[Tesseract]', m)
+          : undefined,
+      })
+      // setParameters APENAS AQUI — nunca repetir dentro do loop PSM
+      await worker.setParameters({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ',
+        tessedit_pageseg_mode: '7' as any,
+        tessedit_ocr_engine_mode: '1',
+      })
+      workerInstance = worker
+      return worker
+    } catch (err) {
+      workerInitPromise = null
+      throw err
+    }
   })()
 
   return workerInitPromise
+}
+
+// ─── MÚLTIPLOS PSM ────────────────────────────────────────────────────────
+// PSM único (7 = single line) é o mais adequado para o badge da figurinha
+// Múltiplos PSM via setParameters() entre recognize() calls corrompe o worker na v7
+
+async function runWithWorker(
+  processedData: string
+): Promise<{ text: string; confidence: number; psm: string } | null> {
+  const worker = await getWorker()
+
+  // Tentativa com PSM padrão (já configurado na init)
+  try {
+    const { data } = await worker.recognize(processedData)
+    console.debug(`[Tesseract PSM 7] confidence=${data.confidence} text="${data.text.trim()}"`)
+    return { text: data.text.trim(), confidence: data.confidence, psm: '7' }
+  } catch (err) {
+    console.warn('[Tesseract] recognize() falhou:', err)
+    // Se falhar, destruir singleton para forçar recriação na próxima chamada
+    try {
+      await workerInstance?.terminate()
+    } catch {
+      /* ignorar */
+    }
+    workerInstance = null
+    workerInitPromise = null
+    return null
+  }
 }
 
 // ─── PROVIDER EXPORT ──────────────────────────────────────────────────────
@@ -183,7 +300,7 @@ export const tesseractProvider: OCRProvider = {
   description: 'Processamento local, sem custo. Funciona sem internet.',
 
   async recognizeText(imageData: Blob | string): Promise<string> {
-    // 1. Pré-processar
+    // 1. Pré-processar (crop inteligente + zoom)
     let processedData: string
     try {
       processedData = await preprocessForOcr(imageData)
@@ -194,16 +311,25 @@ export const tesseractProvider: OCRProvider = {
         : URL.createObjectURL(imageData)
     }
 
-    // 2. OCR
-    const worker = await getWorker()
-    const result = await worker.recognize(processedData)
-    const rawText = result.data.text.trim()
+    // ───────────────────────────────────────────────────────────────
+    // 2. OCR com múltiplos PSM — retry strategy com recuperação
+    // ───────────────────────────────────────────────────────────────
+    const result = await runWithWorker(processedData)
+    const rawText = result?.text ?? ''
+    const confidence = result?.confidence ?? 0
 
     // 3. Extrair e validar código
-    const code = extractAndValidateCode(rawText.toUpperCase())
+    let bestCode: string | null = null
+    if (rawText) {
+      bestCode = extractAndValidateCode(rawText.toUpperCase())
+    }
 
-    // Retornar o código validado se encontrado, ou o texto bruto para
-    // que o componente possa tratar (input manual, sugestão, etc.)
-    return code ?? rawText
+    // 4. Retornar melhor resultado
+    if (bestCode) {
+      return bestCode
+    }
+
+    // Se nenhum código foi encontrado, retornar texto bruto para tratamento manual
+    return rawText
   },
 }
