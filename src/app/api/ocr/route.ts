@@ -79,7 +79,9 @@ Se não conseguir identificar o código, retorne apenas: UNKNOWN`,
       outputTokens: response.usage.output_tokens,
     })
   } catch (error) {
-    console.error('[Claude Haiku OCR] Erro:', error)
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorDetails = error instanceof Error ? error.stack : undefined
+    console.error('[Claude Haiku OCR] Erro:', errorMessage, errorDetails)
     return NextResponse.json(
       { error: 'Erro ao processar imagem com Claude Haiku' },
       { status: 500 }
