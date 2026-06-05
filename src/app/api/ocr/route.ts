@@ -55,13 +55,17 @@ export async function POST(request: NextRequest) {
             },
             {
               type: 'text',
-              text: `Esta é a foto do verso de uma figurinha da Copa do Mundo FIFA 2026 (Panini).
-No canto superior direito há um badge escuro com o código da figurinha.
+              text: `Esta é uma foto de uma ou mais figurinhas da Copa do Mundo FIFA 2026 (Panini).
+Cada figurinha tem um badge escuro no canto superior direito com seu código.
 O código tem o formato: 2 a 4 letras maiúsculas seguidas de 1 ou 2 números.
-Exemplos: TUR 1, IRQ 19, BRA 5, FWC 12, SCO 16.
+Exemplos: TUR 1, IRQ 19, BRA 5, FWC 12, SCO 16, JOR 12, NOR 16.
 
-Retorne APENAS o código da figurinha, sem explicações, sem pontuação.
-Se não conseguir identificar o código, retorne apenas: UNKNOWN`,
+Identifique TODOS os códigos visíveis na imagem.
+Retorne os códigos separados por espaço em uma única linha.
+Exemplos de resposta com múltiplos: "BRA 5 TUR 1 IRQ 19"
+Exemplos de resposta com um: "TUR 1"
+Se não identificar nenhum código, retorne apenas: UNKNOWN
+Não inclua explicações, pontuação ou texto adicional.`,
             },
           ],
         },
