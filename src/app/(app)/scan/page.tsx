@@ -41,12 +41,12 @@ export default function ScanPage() {
     setResult(codes)
   }, [])
 
-  const handleConfirm = useCallback(async (codes: string[]) => {
-    const saved = await saveScannedStickers(codes)
-    toast.success(`${saved} figurinha${saved !== 1 ? 's' : ''} salva${saved !== 1 ? 's' : ''}!`)
+  const handleConfirm = useCallback(async (_codes: string[]) => {
+    // Créditos já foram salvos pelo GoogleVisionScanner
+    // Apenas fechar a tela de resultado
     setResult(null)
     setActive(null)
-  }, [saveScannedStickers])
+  }, [])
 
   const handleManualConfirm = useCallback(async () => {
     if (savingManual || manualCodes.length === 0) return
