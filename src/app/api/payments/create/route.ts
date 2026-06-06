@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       body: {
         items: [
           {
+            id: pack.id,
             title: `${pack.name}`,
             quantity: 1,
             unit_price: Number(pack.priceBRL),

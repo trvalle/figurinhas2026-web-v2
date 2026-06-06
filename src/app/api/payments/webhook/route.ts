@@ -13,50 +13,64 @@ const mp = new MercadoPagoConfig({
 })
 
 function validateWebhookSignature(
-  requestBody: string,
-  signature: string,
-  secret: string,
-  timestamp: string
+  paymentId: string,
+  requestId: string,
+  ts: string,
+  v1: string,
+  secret: string
 ): boolean {
-  const data = `${timestamp}.${requestBody}`
-  const expectedSignature = crypto
+  const manifest = `id:${paymentId};request-id:${requestId};ts:${ts};`
+  const expected = crypto
     .createHmac('sha256', secret)
-    .update(data)
+    .update(manifest)
     .digest('hex')
-  return expectedSignature === signature
+  return expected === v1
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const signature = request.headers.get('x-signature')
-    const timestamp = request.headers.get('x-signature-id')
+    // 1. Ler headers
+    const xSignature = request.headers.get('x-signature') ?? ''
+    const xRequestId = request.headers.get('x-request-id') ?? ''
 
-    if (!signature || !timestamp || !process.env.MP_WEBHOOK_SECRET) {
-      console.warn('[Webhook] Validação falhou: headers faltando')
-      return NextResponse.json({ received: true }, { status: 401 })
-    }
+    // 2. Parsear body
+    const body = await request.json()
 
-    const bodyText = await request.text()
-    const isValid = validateWebhookSignature(
-      bodyText,
-      signature,
-      process.env.MP_WEBHOOK_SECRET,
-      timestamp
-    )
-
-    if (!isValid) {
-      console.warn('[Webhook] Signature inválida')
-      return NextResponse.json({ received: true }, { status: 401 })
-    }
-
-    const body = JSON.parse(bodyText)
-
-    if (body.type !== 'payment') {
+    // 3. Extrair paymentId do body
+    const paymentId = (body.data as Record<string, unknown> | undefined)?.id
+    if (!paymentId) {
+      console.warn('[Webhook] paymentId não encontrado no body')
       return NextResponse.json({ received: true })
     }
 
-    const paymentId = (body.data as Record<string, unknown> | undefined)?.id
-    if (!paymentId) {
+    // 4. Extrair ts e v1 de x-signature
+    const ts = xSignature.match(/ts=([^,]+)/)?.[1] ?? ''
+    const v1 = xSignature.match(/v1=([^,]+)/)?.[1] ?? ''
+
+    // 5. Validar signature
+    if (!ts || !v1 || !xRequestId || !process.env.MP_WEBHOOK_SECRET) {
+      console.warn('[Webhook] Headers ou secret faltando')
+      return NextResponse.json({ received: true }, { status: 401 })
+    }
+
+    const isValid = validateWebhookSignature(
+      String(paymentId),
+      xRequestId,
+      ts,
+      v1,
+      process.env.MP_WEBHOOK_SECRET
+    )
+
+    if (!isValid) {
+      console.warn('[Webhook] Signature inválida', {
+        paymentId,
+        xRequestId,
+        ts,
+      })
+      return NextResponse.json({ received: true }, { status: 401 })
+    }
+
+    if (body.type !== 'payment') {
       return NextResponse.json({ received: true })
     }
 
