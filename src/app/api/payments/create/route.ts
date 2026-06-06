@@ -94,6 +94,8 @@ export async function POST(request: NextRequest) {
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
         payment_methods: {
           excluded_payment_types: [],
+          default_payment_type_id: 'ticket',
+          default_installments: 1,
         },
       },
     })
