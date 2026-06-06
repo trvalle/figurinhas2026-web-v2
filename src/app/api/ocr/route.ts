@@ -37,6 +37,34 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Verificar e deduzir crédito
+  const creditResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/credits/deduct`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': request.headers.get('cookie') ?? '',
+      },
+      body: JSON.stringify({ description: 'OCR de figurinha Copa 2026' }),
+    }
+  )
+
+  if (!creditResponse.ok) {
+    if (creditResponse.status === 402) {
+      return NextResponse.json(
+        { error: 'Créditos insuficientes', code: 'INSUFFICIENT_CREDITS' },
+        { status: 402 }
+      )
+    }
+    if (creditResponse.status === 401) {
+      return NextResponse.json(
+        { error: 'Não autenticado' },
+        { status: 401 }
+      )
+    }
+  }
+
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
