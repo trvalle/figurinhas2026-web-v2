@@ -79,6 +79,17 @@ export async function POST(request: NextRequest) {
           email: user.email ?? undefined,
           name: user.user_metadata?.name ?? 'Usuário',
           surname: user.user_metadata?.surname ?? 'Figurinhas',
+          identification: {
+            type: 'CPF',
+            number: '00000000000',
+          },
+          address: {
+            zip_code: '00000000',
+            street_name: 'Rua',
+            street_number: '0',
+            city_name: 'São Paulo',
+            state_name: 'SP',
+          },
         },
         external_reference: payment.id as string,
         back_urls: {
