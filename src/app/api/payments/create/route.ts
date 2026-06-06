@@ -64,6 +64,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const preference = new Preference(mp)
+    console.log('[Payments] Criando preference com data:', JSON.stringify({
+      pack_id: pack.id,
+      user_email: user.email,
+      amount: pack.priceBRL,
+    }))
+
     const preferenceData = await preference.create({
       body: {
         items: [
@@ -90,6 +96,11 @@ export async function POST(request: NextRequest) {
           excluded_payment_types: [],
         },
       },
+    })
+
+    console.log('[Payments] Preference criada:', {
+      id: preferenceData.id,
+      init_point: preferenceData.init_point?.substring(0, 50) + '...',
     })
 
     await supabase
