@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
 import { Zap, Pencil, Plus, ChevronDown, ChevronLeft, PackagePlus, X } from 'lucide-react'
 import { useInventarioStore } from '@/stores/inventarioStore'
-import { ScanResultScreen } from '@/components/scanner/ScanResultScreen'
 import { HelpModal } from '@/components/tutorial/HelpModal'
 import { loadCatalogCache } from '@/services/ocr'
 
@@ -27,26 +26,12 @@ const PANELS: { key: NonNullable<ActivePanel>; icon: React.ElementType; label: s
 
 export default function ScanPage() {
   const [active, setActive] = useState<ActivePanel>(null)
-  const [result, setResult] = useState<string[] | null>(null)
-  const [resultSource, setResultSource] = useState('')
   const [manualCode, setManualCode] = useState('')
   const [manualCodes, setManualCodes] = useState<ManualStickerWithStatus[]>([])
   const [manualPreviewMode, setManualPreviewMode] = useState(false)
   const [savingManual, setSavingManual] = useState(false)
   const [helpVisible, setHelpVisible] = useState(false)
   const { saveScannedStickers, entries, missing } = useInventarioStore()
-
-  const handleCodes = useCallback((codes: string[], source: string) => {
-    setResultSource(source)
-    setResult(codes)
-  }, [])
-
-  const handleConfirm = useCallback(async (_codes: string[]) => {
-    // Créditos já foram salvos pelo GoogleVisionScanner
-    // Apenas fechar a tela de resultado
-    setResult(null)
-    setActive(null)
-  }, [])
 
   const handleManualConfirm = useCallback(async () => {
     if (savingManual || manualCodes.length === 0) return
@@ -211,24 +196,13 @@ export default function ScanPage() {
     )
   }
 
-  if (result !== null) {
-    return (
-      <div className="fixed inset-0 z-50 bg-ink-900">
-        <ScanResultScreen
-          codes={result}
-          sourceLabel={resultSource}
-          onConfirm={handleConfirm}
-          onCancel={() => setResult(null)}
-        />
-      </div>
-    )
-  }
-
   if (active === 'realtime') {
     return (
       <GoogleVisionScanner
         stickers={entries}
-        onConfirm={(c) => handleCodes(c, 'Tempo Real')}
+        onConfirm={() => {
+          setActive(null)
+        }}
         onClose={() => setActive(null)}
       />
     )
