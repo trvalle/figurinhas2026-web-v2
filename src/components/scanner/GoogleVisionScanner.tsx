@@ -3,8 +3,10 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { X, Zap, PackagePlus, ChevronLeft, Upload } from 'lucide-react'
 import { useInventarioStore } from '@/stores/inventarioStore'
 import { useOCRProviderStore } from '@/stores/ocrProviderStore'
+import { useCreditsStore } from '@/stores/creditsStore'
 import { extractAndValidateCodes, loadCatalogCache } from '@/services/ocr'
 import { getOCRProvider, listOCRProviders } from '@/services/ocrProviders'
+import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal'
 import toast from 'react-hot-toast'
 
 interface DetectedSticker {
@@ -30,9 +32,11 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const [processing, setProcessing] = useState(false)
   const [mode, setMode] = useState<'camera' | 'gallery'>('camera')
   const [showPreview, setShowPreview] = useState(false)
+  const [showInsufficientCredits, setShowInsufficientCredits] = useState(false)
 
   const { saveScannedStickers, entries, missing } = useInventarioStore()
   const { selectedProvider, setSelectedProvider } = useOCRProviderStore()
+  const { decrementBalance } = useCreditsStore()
   const ocrProvider = getOCRProvider(selectedProvider)
 
   // Enriquecer código com status e país
@@ -140,14 +144,20 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
           return [...merged.values()]
         })
         toast.success(`${codes.length} figurinha${codes.length !== 1 ? 's' : ''} identificada${codes.length !== 1 ? 's' : ''}`)
+        decrementBalance()
       }
     } catch (error) {
       console.error('[GoogleVisionScanner] Error:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (errorMsg.includes('INSUFFICIENT_CREDITS') || errorMsg.includes('402')) {
+        setShowInsufficientCredits(true)
+        return
+      }
       toast.error('Erro ao analisar imagem. Tente novamente.')
     } finally {
       setProcessing(false)
     }
-  }, [processing, enrichDetected, ocrProvider])
+  }, [processing, enrichDetected, ocrProvider, decrementBalance])
 
   const handleGalleryUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -171,15 +181,21 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
           return [...merged.values()]
         })
         toast.success(`${codes.length} figurinha${codes.length !== 1 ? 's' : ''} identificada${codes.length !== 1 ? 's' : ''}`)
+        decrementBalance()
       }
     } catch (error) {
       console.error('[GoogleVisionScanner] Gallery upload error:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (errorMsg.includes('INSUFFICIENT_CREDITS') || errorMsg.includes('402')) {
+        setShowInsufficientCredits(true)
+        return
+      }
       toast.error('Erro ao analisar imagem.')
     } finally {
       setProcessing(false)
       event.target.value = ''
     }
-  }, [enrichDetected, ocrProvider])
+  }, [enrichDetected, ocrProvider, decrementBalance])
 
   const handleShowPreview = useCallback(() => {
     setShowPreview(true)
@@ -535,6 +551,10 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
           </div>
         </div>
       )}
+      <InsufficientCreditsModal
+        isOpen={showInsufficientCredits}
+        onClose={() => setShowInsufficientCredits(false)}
+      />
     </div>
   )
 }
