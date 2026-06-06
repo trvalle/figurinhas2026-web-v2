@@ -57,7 +57,7 @@ export default function ScanPage() {
       toast.success(`${count} figurinha${count !== 1 ? 's' : ''} adicionada${count !== 1 ? 's' : ''}!`)
       setManualCodes([])
       setManualPreviewMode(false)
-      setActive(null)
+      setActive('realtime')
     } catch (error) {
       console.error('Save error:', error)
       toast.error('Erro ao salvar.')
