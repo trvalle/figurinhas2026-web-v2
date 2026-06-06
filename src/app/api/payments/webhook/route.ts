@@ -1,6 +1,7 @@
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,9 +12,44 @@ const mp = new MercadoPagoConfig({
   accessToken: process.env.MP_ACCESS_TOKEN!,
 })
 
+function validateWebhookSignature(
+  requestBody: string,
+  signature: string,
+  secret: string,
+  timestamp: string
+): boolean {
+  const data = `${timestamp}.${requestBody}`
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(data)
+    .digest('hex')
+  return expectedSignature === signature
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const signature = request.headers.get('x-signature')
+    const timestamp = request.headers.get('x-signature-id')
+
+    if (!signature || !timestamp || !process.env.MP_WEBHOOK_SECRET) {
+      console.warn('[Webhook] Validação falhou: headers faltando')
+      return NextResponse.json({ received: true }, { status: 401 })
+    }
+
+    const bodyText = await request.text()
+    const isValid = validateWebhookSignature(
+      bodyText,
+      signature,
+      process.env.MP_WEBHOOK_SECRET,
+      timestamp
+    )
+
+    if (!isValid) {
+      console.warn('[Webhook] Signature inválida')
+      return NextResponse.json({ received: true }, { status: 401 })
+    }
+
+    const body = JSON.parse(bodyText)
 
     if (body.type !== 'payment') {
       return NextResponse.json({ received: true })
