@@ -77,6 +77,8 @@ export async function POST(request: NextRequest) {
         ],
         payer: {
           email: user.email ?? undefined,
+          name: user.user_metadata?.name ?? 'Usuário',
+          surname: user.user_metadata?.surname ?? 'Figurinhas',
         },
         external_reference: payment.id as string,
         back_urls: {
