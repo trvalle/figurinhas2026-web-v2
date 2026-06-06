@@ -38,17 +38,27 @@ export async function POST(request: NextRequest) {
   }
 
   // Verificar e deduzir crédito
-  const creditResponse = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/credits/deduct`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': request.headers.get('cookie') ?? '',
-      },
-      body: JSON.stringify({ description: 'OCR de figurinha Copa 2026' }),
-    }
-  )
+  let creditResponse: Response
+  try {
+    creditResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/credits/deduct`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cookie': request.headers.get('cookie') ?? '',
+        },
+        body: JSON.stringify({ description: 'OCR de figurinha Copa 2026' }),
+      }
+    )
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('[OCR] Erro ao deduzir crédito:', errorMessage)
+    return NextResponse.json(
+      { error: 'Erro ao verificar créditos', details: errorMessage },
+      { status: 500 }
+    )
+  }
 
   if (!creditResponse.ok) {
     if (creditResponse.status === 402) {

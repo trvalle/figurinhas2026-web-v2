@@ -7,6 +7,6 @@ interface OCRProviderStore {
 }
 
 export const useOCRProviderStore = create<OCRProviderStore>((set) => ({
-  selectedProvider: 'google-vision',
+  selectedProvider: 'claude-haiku',
   setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 }))

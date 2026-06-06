@@ -416,43 +416,6 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
               </div>
             )}
 
-            {selectedProvider === 'tesseract' && !processing && (
-              <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-
-                {/* Escurecimento nas bordas — destaca o centro */}
-                <div className="absolute inset-0 bg-black/40"
-                     style={{
-                       maskImage: 'radial-gradient(ellipse 60% 40% at center, transparent 55%, black 100%)',
-                       WebkitMaskImage: 'radial-gradient(ellipse 60% 40% at center, transparent 55%, black 100%)'
-                     }}
-                />
-
-                {/* Retângulo guia — proporção da figurinha (aprox 3:4) */}
-                <div className="relative border-2 border-white/80 rounded-lg"
-                     style={{ width: '65vw', height: '87vw', maxWidth: '280px', maxHeight: '373px' }}>
-
-                  {/* Cantos destacados */}
-                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-yellow-400 rounded-tl-lg" />
-                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-yellow-400 rounded-tr-lg" />
-                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-yellow-400 rounded-bl-lg" />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-yellow-400 rounded-br-lg" />
-
-                  {/* Indicador do badge — canto superior direito */}
-                  <div className="absolute -top-7 right-0 flex items-center gap-1">
-                    <span className="text-yellow-400 text-xs font-bold bg-black/60 px-2 py-0.5 rounded">
-                      código aqui
-                    </span>
-                    <span className="text-yellow-400 text-sm">↓</span>
-                  </div>
-                </div>
-
-                {/* Instrução embaixo do guia */}
-                <p className="mt-4 text-white text-sm font-medium bg-black/60 px-3 py-1.5 rounded-full">
-                  Aproxime até a figurinha preencher o guia
-                </p>
-
-              </div>
-            )}
           </div>
 
           <div className="flex gap-3 p-4 bg-ink-900/50 border-t border-ink-700">

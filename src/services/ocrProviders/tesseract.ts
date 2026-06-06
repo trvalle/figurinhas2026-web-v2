@@ -293,43 +293,5 @@ async function runWithWorker(
 }
 
 // ─── PROVIDER EXPORT ──────────────────────────────────────────────────────
-
-export const tesseractProvider: OCRProvider = {
-  id: 'tesseract',
-  name: 'Tesseract (Offline)',
-  description: 'Processamento local, sem custo. Funciona sem internet.',
-
-  async recognizeText(imageData: Blob | string): Promise<string> {
-    // 1. Pré-processar (crop inteligente + zoom)
-    let processedData: string
-    try {
-      processedData = await preprocessForOcr(imageData)
-    } catch {
-      // Fallback: usar dado original se pré-processamento falhar
-      processedData = typeof imageData === 'string'
-        ? imageData
-        : URL.createObjectURL(imageData)
-    }
-
-    // ───────────────────────────────────────────────────────────────
-    // 2. OCR com múltiplos PSM — retry strategy com recuperação
-    // ───────────────────────────────────────────────────────────────
-    const result = await runWithWorker(processedData)
-    const rawText = result?.text ?? ''
-    const confidence = result?.confidence ?? 0
-
-    // 3. Extrair e validar código
-    let bestCode: string | null = null
-    if (rawText) {
-      bestCode = extractAndValidateCode(rawText.toUpperCase())
-    }
-
-    // 4. Retornar melhor resultado
-    if (bestCode) {
-      return bestCode
-    }
-
-    // Se nenhum código foi encontrado, retornar texto bruto para tratamento manual
-    return rawText
-  },
-}
+// Arquivo deprecado — Tesseract não é mais usado
+// export const tesseractProvider: OCRProvider = { ... }

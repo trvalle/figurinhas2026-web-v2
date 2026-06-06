@@ -59,42 +59,51 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erro ao criar pagamento' }, { status: 500 })
   }
 
-  const preference = new Preference(mp)
-  const preferenceData = await preference.create({
-    body: {
-      items: [
-        {
-          id: pack.id,
-          title: `${pack.name} — ${pack.credits} créditos`,
-          quantity: 1,
-          unit_price: pack.priceBRL,
-          currency_id: 'BRL',
+  try {
+    const preference = new Preference(mp)
+    const preferenceData = await preference.create({
+      body: {
+        items: [
+          {
+            id: pack.id,
+            title: `${pack.name} — ${pack.credits} créditos`,
+            quantity: 1,
+            unit_price: pack.priceBRL,
+            currency_id: 'BRL',
+          },
+        ],
+        payer: {
+          email: user.email ?? undefined,
         },
-      ],
-      payer: {
-        email: user.email ?? undefined,
+        external_reference: payment.id as string,
+        back_urls: {
+          success: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=success`,
+          failure: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=failure`,
+          pending: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=pending`,
+        },
+        auto_return: 'approved',
+        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
+        payment_methods: {
+          excluded_payment_types: [],
+        },
       },
-      external_reference: payment.id as string,
-      back_urls: {
-        success: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=success`,
-        failure: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=failure`,
-        pending: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=pending`,
-      },
-      auto_return: 'approved',
-      notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
-      payment_methods: {
-        excluded_payment_types: [],
-      },
-    },
-  })
+    })
 
-  await supabase
-    .from('payments')
-    .update({ mp_preference_id: preferenceData.id })
-    .eq('id', payment.id as string)
+    await supabase
+      .from('payments')
+      .update({ mp_preference_id: preferenceData.id })
+      .eq('id', payment.id as string)
 
-  return NextResponse.json({
-    preferenceId: preferenceData.id,
-    initPoint: preferenceData.init_point,
-  })
+    return NextResponse.json({
+      preferenceId: preferenceData.id,
+      initPoint: preferenceData.init_point,
+    })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    console.error('[Payments] Erro ao criar preferência MP:', errorMessage)
+    return NextResponse.json(
+      { error: 'Erro ao criar preferência de pagamento', details: errorMessage },
+      { status: 500 }
+    )
+  }
 }

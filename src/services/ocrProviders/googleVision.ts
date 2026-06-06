@@ -10,27 +10,8 @@ async function toBase64(imageData: Blob | string): Promise<string> {
   })
 }
 
-export const googleVisionProvider: OCRProvider = {
-  id: 'google-vision',
-  name: 'Google Vision',
-  description: 'Google Cloud Vision API',
-
-  async recognizeText(imageData: Blob | string): Promise<string> {
-    const base64 = await toBase64(imageData)
-    const { getSupabaseClient } = await import('../supabase')
-    const supabase = getSupabaseClient()
-
-    const { data, error } = await supabase.functions.invoke('ocr', {
-      body: { image: base64 },
-    })
-
-    if (error) throw new Error(error.message)
-
-    const payload = data as { text?: string; error?: string }
-    if (payload.error) throw new Error(payload.error)
-
-    const text = payload.text ?? ''
-    console.debug('[OCR raw]', JSON.stringify(text))
-    return text
-  },
-}
+// Arquivo deprecado — Google Vision não é mais usado
+// export const googleVisionProvider: OCRProvider = {
+//   id: 'google-vision',
+//   ...
+// }
