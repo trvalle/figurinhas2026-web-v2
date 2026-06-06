@@ -108,16 +108,31 @@ export async function POST(request: NextRequest) {
       .update({ mp_preference_id: preferenceData.id })
       .eq('id', payment.id as string)
 
-    return NextResponse.json({
+    const response = {
       preferenceId: preferenceData.id,
       initPoint: preferenceData.init_point,
-    })
+      debug: {
+        preferenceId: preferenceData.id?.substring(0, 20),
+        hasInitPoint: !!preferenceData.init_point,
+      },
+    }
+    console.log('[Payments] Retornando sucesso:', response.debug)
+    return NextResponse.json(response)
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
-    console.error('[Payments] Erro ao criar preferência MP:', errorMessage)
+    const errorStatus = (error as any).status || 500
+    console.error('[Payments] Erro ao criar preferência MP:', {
+      message: errorMessage,
+      status: errorStatus,
+      type: error?.constructor?.name,
+    })
     return NextResponse.json(
-      { error: 'Erro ao criar preferência de pagamento', details: errorMessage },
-      { status: 500 }
+      {
+        error: 'Erro ao criar preferência de pagamento',
+        details: errorMessage,
+        status: errorStatus,
+      },
+      { status: errorStatus }
     )
   }
 }
