@@ -5,7 +5,7 @@ import { useInventarioStore } from '@/stores/inventarioStore'
 import { useOCRProviderStore } from '@/stores/ocrProviderStore'
 import { useCreditsStore } from '@/stores/creditsStore'
 import { extractAndValidateCodes, loadCatalogCache } from '@/services/ocr'
-import { getOCRProvider, listOCRProviders } from '@/services/ocrProviders'
+import { getOCRProvider } from '@/services/ocrProviders'
 import { InsufficientCreditsModal } from '@/components/credits/InsufficientCreditsModal'
 import toast from 'react-hot-toast'
 
@@ -35,9 +35,8 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
   const [showInsufficientCredits, setShowInsufficientCredits] = useState(false)
 
   const { saveScannedStickers, entries, missing } = useInventarioStore()
-  const { selectedProvider, setSelectedProvider } = useOCRProviderStore()
   const { decrementBalance } = useCreditsStore()
-  const ocrProvider = getOCRProvider(selectedProvider)
+  const ocrProvider = getOCRProvider('claude-haiku')
 
   // Enriquecer código com status e país
   const enrichDetected = useCallback(async (codes: string[]) => {
@@ -353,20 +352,6 @@ export default function GoogleVisionScanner({ stickers, onConfirm, onClose }: Go
           <ChevronLeft size={18} />
           Voltar
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-body text-ink-500 tracking-wide">⚡ TEMPO REAL</span>
-          <select
-            value={selectedProvider}
-            onChange={(e) => setSelectedProvider(e.target.value as any)}
-            className="text-xs bg-ink-800 border border-ink-700 rounded px-2 py-1 text-ink-200 hover:border-gold-500 transition focus:outline-none focus:border-gold-500"
-          >
-            {listOCRProviders().map(provider => (
-              <option key={provider.id} value={provider.id}>
-                {provider.name}
-              </option>
-            ))}
-          </select>
-        </div>
         <div className="text-xs text-ink-500">{detected.length > 0 ? `${detected.length}` : '—'}</div>
       </div>
 

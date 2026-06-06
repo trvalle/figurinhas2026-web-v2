@@ -4,8 +4,11 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPackageById } from '@/lib/credits/packages'
 
+const isProduction = process.env.VERCEL_ENV === 'production'
 const mp = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN!,
+  accessToken: (isProduction
+    ? process.env.MP_ACCESS_TOKEN
+    : process.env.MP_ACCESS_TOKEN_TEST)!,
 })
 
 export async function POST(request: NextRequest) {
