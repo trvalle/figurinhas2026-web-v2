@@ -69,17 +69,11 @@ export async function POST(request: NextRequest) {
       body: {
         items: [
           {
-            id: pack.id,
             title: `${pack.name}`,
             quantity: 1,
-            unit_price: pack.priceBRL,
-            currency_id: 'BRL',
+            unit_price: Number(pack.priceBRL),
           },
         ],
-        payer: {
-          email: user.email ?? undefined,
-        },
-        external_reference: payment.id as string,
         back_urls: {
           success: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=success`,
           failure: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=failure`,
