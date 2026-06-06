@@ -64,18 +64,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const preference = new Preference(mp)
-    console.log('[Payments] Criando preference com data:', JSON.stringify({
-      pack_id: pack.id,
-      user_email: user.email,
-      amount: pack.priceBRL,
-    }))
 
     const preferenceData = await preference.create({
       body: {
         items: [
           {
             id: pack.id,
-            title: `${pack.name} — ${pack.credits} créditos`,
+            title: `${pack.name}`,
             quantity: 1,
             unit_price: pack.priceBRL,
             currency_id: 'BRL',
@@ -89,13 +84,6 @@ export async function POST(request: NextRequest) {
           success: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=success`,
           failure: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=failure`,
           pending: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=pending`,
-        },
-        auto_return: 'approved',
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
-        payment_methods: {
-          excluded_payment_types: [],
-          default_payment_type_id: 'ticket',
-          default_installments: 1,
         },
       },
     })
