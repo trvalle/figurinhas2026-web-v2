@@ -8,10 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 )
 
-const mp = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN!,
-})
-
 function validateWebhookSignature(
   paymentId: string,
   requestId: string,
@@ -28,6 +24,10 @@ function validateWebhookSignature(
 }
 
 export async function POST(request: NextRequest) {
+  const mp = new MercadoPagoConfig({
+    accessToken: process.env.MP_ACCESS_TOKEN!,
+  })
+
   try {
     // 1. Ler headers
     const xSignature = request.headers.get('x-signature') ?? ''

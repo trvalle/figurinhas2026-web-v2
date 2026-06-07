@@ -4,18 +4,20 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPackageById } from '@/lib/credits/packages'
 
-const isProduction = process.env.VERCEL_ENV === 'production'
-const mp = new MercadoPagoConfig({
-  accessToken: (isProduction
-    ? process.env.MP_ACCESS_TOKEN
-    : process.env.MP_ACCESS_TOKEN_TEST)!,
-})
-
 export async function POST(request: NextRequest) {
   console.log('[Payments] POST iniciado')
   console.log('[Payments] VERCEL_ENV:', process.env.VERCEL_ENV)
   console.log('[Payments] MP_ACCESS_TOKEN:', process.env.MP_ACCESS_TOKEN ? '✓' : '✗')
   console.log('[Payments] MP_ACCESS_TOKEN_TEST:', process.env.MP_ACCESS_TOKEN_TEST ? '✓' : '✗')
+
+  // ⚠️ Criar config DENTRO do handler para respeitar env vars de cada requisição
+  const isProduction = process.env.VERCEL_ENV === 'production'
+  console.log('[Payments] isProduction:', isProduction)
+  const mp = new MercadoPagoConfig({
+    accessToken: (isProduction
+      ? process.env.MP_ACCESS_TOKEN
+      : process.env.MP_ACCESS_TOKEN_TEST)!,
+  })
 
   const cookieStore = await cookies()
   const supabase = createServerClient(
