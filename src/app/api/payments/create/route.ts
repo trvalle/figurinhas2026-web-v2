@@ -12,6 +12,11 @@ const mp = new MercadoPagoConfig({
 })
 
 export async function POST(request: NextRequest) {
+  console.log('[Payments] POST iniciado')
+  console.log('[Payments] VERCEL_ENV:', process.env.VERCEL_ENV)
+  console.log('[Payments] MP_ACCESS_TOKEN:', process.env.MP_ACCESS_TOKEN ? '✓' : '✗')
+  console.log('[Payments] MP_ACCESS_TOKEN_TEST:', process.env.MP_ACCESS_TOKEN_TEST ? '✓' : '✗')
+
   const cookieStore = await cookies()
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,8 +40,10 @@ export async function POST(request: NextRequest) {
     error: authError,
   } = await supabase.auth.getUser()
   if (authError || !user) {
+    console.log('[Payments] Auth error:', authError)
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   }
+  console.log('[Payments] User autenticado:', user.id)
 
   const body = await request.json().catch(() => ({}))
   const packId = (body as Record<string, unknown>).packId
@@ -63,7 +70,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    console.log('[Payments] Criando preference...')
     const preference = new Preference(mp)
+
+    console.log('[Payments] Preference body:', {
+      pack: pack.id,
+      price: pack.priceBRL,
+      appUrl: process.env.NEXT_PUBLIC_APP_URL,
+    })
 
     const preferenceData = await preference.create({
       body: {
@@ -107,10 +121,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     const errorStatus = (error as any).status || 500
-    console.error('[Payments] Erro ao criar preferência MP:', {
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('[Payments] ❌ ERRO ao criar preferência MP:', {
       message: errorMessage,
       status: errorStatus,
       type: error?.constructor?.name,
+      stack: errorStack,
+      fullError: JSON.stringify(error, null, 2),
     })
     return NextResponse.json(
       {
