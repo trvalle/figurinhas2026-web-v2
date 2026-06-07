@@ -9,6 +9,7 @@ import { getSupabaseClient } from '@/services/supabase'
 import { getCepCoordinates } from '@/services/geocoding'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { validateCpf, maskCpf, hashCpf, cleanCpf } from '@/lib/cpf'
 
 const schemaAuth = z.object({
   email: z.string().email('E-mail inválido'),
@@ -38,6 +39,9 @@ export default function CadastroPage() {
   const [geocoding, setGeocoding] = useState(false)
   const [addressDisplay, setAddressDisplay] = useState('')
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [cpf, setCpf] = useState('')
+  const [cpfError, setCpfError] = useState('')
+  const [checkingCpf, setCheckingCpf] = useState(false)
 
   useEffect(() => {
     const check = async () => {
@@ -113,6 +117,31 @@ export default function CadastroPage() {
     }
   }
 
+  const handleCpfBlur = async () => {
+    if (!cpf || cleanCpf(cpf).length < 11) return
+    if (!validateCpf(cpf)) {
+      setCpfError('CPF inválido. Verifique os números e tente novamente.')
+      return
+    }
+    setCheckingCpf(true)
+    try {
+      const cpfHash = await hashCpf(cpf)
+      const response = await fetch('/api/auth/check-cpf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cpfHash }),
+      })
+      const data = await response.json()
+      if (data.exists) {
+        setCpfError('Este CPF já está cadastrado. Faça login ou use outro CPF.')
+      }
+    } catch {
+      // Verificação falhou — validar novamente no submit
+    } finally {
+      setCheckingCpf(false)
+    }
+  }
+
   const onSubmitPerfil = async (data: PerfilData) => {
     if (!coords || !addressDisplay) {
       toast.error('Informe um CEP válido para localizar seu endereço.')
@@ -120,9 +149,27 @@ export default function CadastroPage() {
     }
     if (!userId) return
 
+    if (!validateCpf(cpf)) {
+      toast.error('CPF inválido.')
+      return
+    }
+
     setLoading(true)
     const supabase = getSupabaseClient()
     const locationWKT = `POINT(${coords.lng} ${coords.lat})`
+    const cpfHash = await hashCpf(cpf)
+    const checkResponse = await fetch('/api/auth/check-cpf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cpfHash }),
+    })
+    const checkData = await checkResponse.json()
+    if (checkData.exists) {
+      toast.error('Este CPF já está cadastrado.')
+      setCpfError('Este CPF já está cadastrado. Faça login ou use outro CPF.')
+      setLoading(false)
+      return
+    }
 
     const { error: insertError } = await supabase.from('users').insert({
       id: userId,
@@ -133,6 +180,7 @@ export default function CadastroPage() {
       notifications_enabled: data.notifications_enabled,
       is_visible: true,
       location: locationWKT,
+      cpf_hash: cpfHash,
     })
 
     if (insertError) {
@@ -235,6 +283,39 @@ export default function CadastroPage() {
             error={perfilForm.formState.errors.display_name?.message}
             {...perfilForm.register('display_name')}
           />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-ink-300">
+              CPF <span className="text-scarlet-400">*</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="000.000.000-00"
+              value={cpf}
+              onChange={(e) => {
+                const masked = maskCpf(e.target.value)
+                setCpf(masked)
+                setCpfError('')
+              }}
+              onBlur={handleCpfBlur}
+              maxLength={14}
+              className={`w-full px-4 py-3 rounded-xl bg-ink-800 border text-ink-100
+                placeholder-ink-600 focus:outline-none transition ${
+                cpfError
+                  ? 'border-scarlet-500 focus:border-scarlet-500'
+                  : 'border-ink-700 focus:border-gold-500'
+              }`}
+            />
+            {cpfError && (
+              <p className="text-xs text-scarlet-400">{cpfError}</p>
+            )}
+            {checkingCpf && (
+              <p className="text-xs text-ink-500">Verificando CPF...</p>
+            )}
+            <p className="text-xs text-ink-600">
+              Usado apenas para verificar unicidade da conta.
+            </p>
+          </div>
           <Input
             label="CEP (sem hífen)"
             placeholder="01310100"

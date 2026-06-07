@@ -257,6 +257,7 @@ export type Database = {
       users: {
         Row: {
           address_display: string
+          cpf_hash: string | null
           created_at: string
           display_name: string
           expo_push_token: string | null
@@ -271,6 +272,7 @@ export type Database = {
         }
         Insert: {
           address_display: string
+          cpf_hash?: string | null
           created_at?: string
           display_name: string
           expo_push_token?: string | null
@@ -285,6 +287,7 @@ export type Database = {
         }
         Update: {
           address_display?: string
+          cpf_hash?: string | null
           created_at?: string
           display_name?: string
           expo_push_token?: string | null

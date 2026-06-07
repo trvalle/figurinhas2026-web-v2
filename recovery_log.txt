@@ -1,0 +1,52 @@
+
+🔄 INICIANDO RECOVERY DE 43 PAGAMENTOS
+
+✅ 1. 50cr adicionados para 02bac49c... (ID: 241da9a3...)
+✅ 2. 50cr adicionados para 0170e33e... (ID: a2721d3a...)
+✅ 3. 50cr adicionados para 32dafbf3... (ID: 41d7f4c8...)
+✅ 4. 50cr adicionados para 32dafbf3... (ID: 413dfbd0...)
+✅ 5. 50cr adicionados para 32dafbf3... (ID: d57c1f81...)
+✅ 6. 50cr adicionados para 32dafbf3... (ID: 0e7141b1...)
+✅ 7. 50cr adicionados para 32dafbf3... (ID: 06d7e3ab...)
+✅ 8. 200cr adicionados para 32dafbf3... (ID: 9e5fdc01...)
+✅ 9. 50cr adicionados para 32dafbf3... (ID: 138bb25f...)
+✅ 10. 50cr adicionados para 32dafbf3... (ID: 4e87e65d...)
+✅ 11. 50cr adicionados para 32dafbf3... (ID: 5d2ad83a...)
+✅ 12. 50cr adicionados para 32dafbf3... (ID: 2fe56b25...)
+✅ 13. 50cr adicionados para 32dafbf3... (ID: 9c4ded19...)
+✅ 14. 50cr adicionados para 32dafbf3... (ID: 93fc72d9...)
+✅ 15. 50cr adicionados para 32dafbf3... (ID: 0c0ef7b4...)
+✅ 16. 50cr adicionados para 32dafbf3... (ID: 3deb9b11...)
+✅ 17. 50cr adicionados para 32dafbf3... (ID: c3dc54cc...)
+✅ 18. 50cr adicionados para 32dafbf3... (ID: 86f1e4e7...)
+✅ 19. 50cr adicionados para 32dafbf3... (ID: 69c28e9e...)
+✅ 20. 50cr adicionados para 32dafbf3... (ID: 8359dd85...)
+✅ 21. 50cr adicionados para 32dafbf3... (ID: af355468...)
+✅ 22. 50cr adicionados para 32dafbf3... (ID: 481f2548...)
+✅ 23. 500cr adicionados para 32dafbf3... (ID: ee8fc175...)
+✅ 24. 50cr adicionados para 32dafbf3... (ID: cab8feb0...)
+✅ 25. 50cr adicionados para 32dafbf3... (ID: fc89dc85...)
+✅ 26. 50cr adicionados para 32dafbf3... (ID: 10a354b7...)
+✅ 27. 50cr adicionados para 32dafbf3... (ID: 85501040...)
+✅ 28. 50cr adicionados para 32dafbf3... (ID: bc48eaef...)
+✅ 29. 50cr adicionados para 32dafbf3... (ID: f6f15d39...)
+✅ 30. 50cr adicionados para 32dafbf3... (ID: 85f2a4eb...)
+✅ 31. 50cr adicionados para 32dafbf3... (ID: acaf62a7...)
+✅ 32. 50cr adicionados para 32dafbf3... (ID: 31540ebf...)
+✅ 33. 50cr adicionados para 32dafbf3... (ID: fe6421c3...)
+✅ 34. 50cr adicionados para 32dafbf3... (ID: 4524d0b5...)
+✅ 35. 50cr adicionados para 32dafbf3... (ID: 2b74746e...)
+✅ 36. 50cr adicionados para 32dafbf3... (ID: 87220bb6...)
+✅ 37. 50cr adicionados para 32dafbf3... (ID: 503355ec...)
+✅ 38. 50cr adicionados para 32dafbf3... (ID: 8ca1c244...)
+✅ 39. 50cr adicionados para 32dafbf3... (ID: 8f6cebf7...)
+✅ 40. 50cr adicionados para 32dafbf3... (ID: 2ccbfc5d...)
+✅ 41. 50cr adicionados para 32dafbf3... (ID: 9673d71a...)
+✅ 42. 50cr adicionados para 32dafbf3... (ID: 98b17256...)
+✅ 43. 50cr adicionados para 32dafbf3... (ID: e74684fa...)
+
+📊 RESULTADO FINAL:
+
+✅ Processados com sucesso: 43
+❌ Erros: 0
+📈 Créditos recuperados: 2750cr
