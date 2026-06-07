@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
       pack: pack.id,
       price: pack.priceBRL,
       appUrl: process.env.NEXT_PUBLIC_APP_URL,
+      externalReference: payment.id,
     })
 
     const preferenceData = await preference.create({
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
           pending: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=pending`,
         },
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
+        external_reference: payment.id as string,
       },
     })
 
