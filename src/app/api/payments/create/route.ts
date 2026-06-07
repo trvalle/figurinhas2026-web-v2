@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
           failure: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=failure`,
           pending: `${process.env.NEXT_PUBLIC_APP_URL}/credits?status=pending`,
         },
+        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/webhook`,
       },
     })
 
