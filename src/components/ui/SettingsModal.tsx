@@ -49,7 +49,7 @@ export function SettingsModal({ onExportPDF }: SettingsModalProps) {
   const items = [
     { icon: '⚙️', label: 'Configurar álbum', action: () => { close(); router.push('/onboarding') } },
     { icon: '📄', label: 'Exportar PDF', action: () => { close(); onExportPDF?.() } },
-    { icon: '👤', label: 'Editar perfil', action: () => { close(); router.push('/cadastro') } },
+    { icon: '👤', label: 'Editar perfil', action: () => { close(); router.push('/perfil') } },
     ...(isAdmin ? [{ icon: '🛡️', label: 'Admin — Aprovações', action: () => { close(); router.push('/admin') }, admin: true }] : []),
     { icon: '🗑️', label: 'Zerar álbum', action: handleZerarAlbum, danger: true },
     { icon: '🚪', label: 'Sair', action: handleSignOut, danger: true },
